@@ -240,8 +240,8 @@ const App = {
     const w = Store.data.wedding;
     const days = U.daysUntil(w.date);
     const count = days == null ? 'עוד לא קבעתם תאריך? אפשר להוסיף בהגדרות ⚙️'
-      : days > 1 ? `עוד <b>${days}</b> ימים לחופה 💫`
-      : days === 1 ? 'מחר החתונה! 🥳'
+      : days > 1 ? `עוד <b>${days}</b> ימים לחופה בע"ה 💫`
+      : days === 1 ? 'מחר החתונה בע"ה! 🥳'
       : days === 0 ? 'היום החתונה! מזל טוב! 🎉'
       : 'מזל טוב! 💖';
     this.root.innerHTML = `
