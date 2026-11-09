@@ -269,6 +269,44 @@ input[type=date] { color-scheme: dark; }
   body.printing .report { color: #000; background: #fff; border: 0; max-height: none; overflow: visible; font-size: 13pt; }
 }
 
+/* ---------- Sending invites ---------- */
+.invite-panel > p:first-child { margin-top: 0; line-height: 1.7; }
+.send-progress { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; font-weight: 700; }
+.bar { flex: 1; height: 8px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, #f7c873, #ff4f8b); border-radius: 99px; transition: width .4s; }
+.send-progress .bar { height: 10px; }
+.next-send { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.next-send .wa-btn { flex: 1 1 260px; text-decoration: none; }
+.all-sent { font-size: 24px; font-weight: 900; text-align: center; margin: 6px 0 12px; }
+.send-list { display: grid; gap: 6px; margin-top: 14px; max-height: 50vh; overflow-y: auto; }
+.send-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px; background: rgba(0, 0, 0, .2); border: 1px solid var(--line); }
+.send-row.done { opacity: .65; }
+.s-name { flex: 1; font-weight: 700; }
+.tag.note { background: rgba(201, 167, 255, .2); border-color: rgba(201, 167, 255, .55); }
+
+/* ---------- Guest RSVP page ---------- */
+.rsvp-page { text-align: center; padding: 10px 0; }
+.rsvp-hello { font-size: 24px; margin: 6px 0; }
+.rsvp-sub { font-size: 19px; color: #ffe5f1; margin: 6px 0; }
+.rsvp-card { margin-top: 18px; }
+.rsvp-card h3 { margin: 0; font-size: 22px; }
+.rsvp-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.choice {
+  display: grid; gap: 6px; justify-items: center; padding: 14px 6px; border-radius: 18px; font-weight: 700; font-size: 15px;
+  background: var(--card2); border: 2px solid var(--line); transition: transform .15s, background .2s, border-color .2s;
+}
+.choice b { font-size: 34px; }
+.choice:hover { transform: translateY(-3px); }
+.choice.yes.on { background: rgba(46, 229, 157, .3); border-color: var(--good); box-shadow: 0 0 20px rgba(46, 229, 157, .4); }
+.choice.maybe.on { background: rgba(247, 200, 115, .3); border-color: var(--gold); box-shadow: 0 0 20px rgba(247, 200, 115, .4); }
+.choice.no.on { background: rgba(255, 92, 122, .3); border-color: var(--bad); box-shadow: 0 0 20px rgba(255, 92, 122, .4); }
+.count-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+.stepper { display: flex; align-items: center; gap: 12px; direction: ltr; }
+.stepper button { width: 44px; height: 44px; border-radius: 50%; font-size: 24px; font-weight: 900; background: var(--card2); border: 1px solid var(--line); }
+.stepper b { font-size: 26px; min-width: 30px; }
+.note-row { display: grid; gap: 6px; font-weight: 700; text-align: right; }
+.rsvp-thanks { font-family: 'Suez One', 'Rubik', serif; font-weight: 400; font-size: clamp(36px, 7vw, 56px); margin: 8px 0; }
+
 /* ---------- Settings ---------- */
 .settings { display: grid; gap: 16px; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }

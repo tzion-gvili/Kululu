@@ -50,8 +50,11 @@ const App = {
     };
     const modalOpen = () => !document.getElementById('modal').classList.contains('hidden');
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && !modalOpen()) Store.refresh();
+      if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) Store.refresh().then(() => this.syncCloud());
     });
+    setInterval(() => {
+      if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) this.syncCloud();
+    }, 60000);
     addEventListener('online', () => {
       if (Store.data && localStorage.getItem(Store.pendKey())) Store.push();
     });
@@ -61,9 +64,174 @@ const App = {
         <p class="tagline">צריך לפתוח את האפליקציה דרך האתר (https) או דרך <b>start.cmd</b>, ולא ישירות מהקובץ.</p></div>`;
       return;
     }
+    const rt = new URLSearchParams(location.search).get('r');
+    if (rt && /^[0-9a-f]{32}$/.test(rt)) { this.rsvpPage(rt); return; }
+
     const saved = sessionStorage.getItem('kululu_code');
     if (saved) this.enter(saved, true);
     else this.login();
+  },
+
+  /* ---------- Cloud sync: personal links out, guests' answers in ---------- */
+  async syncCloud() {
+    if (!Cloud.on() || !Store.data || this._syncing) return;
+    this._syncing = true;
+    try {
+      await Store.ensureInvites();
+      const fresh = await Store.syncRsvps();
+      if (fresh.length) {
+        const yes = fresh.filter((g) => g.rsvp === 'yes').length;
+        Sound.bells();
+        if (yes) FX.hearts();
+        FX.toast(fresh.length === 1
+          ? `💌 ${U.esc(fresh[0].name)} ענה/תה: ${OPT.rsvp[fresh[0].rsvp]} ${RSVP_ICON[fresh[0].rsvp]}`
+          : `💌 ${fresh.length} תשובות חדשות! (${yes} מגיעים)`, 'good');
+        if (document.getElementById('modal').classList.contains('hidden')) this.dash();
+        else this.chrome();
+      }
+    } catch (e) {
+      console.warn(e.message);
+    } finally {
+      this._syncing = false;
+    }
+  },
+
+  inviteLink(g) {
+    if (!Cloud.on()) return '';
+    if (!g.rt) g.rt = Vault.hex(crypto.getRandomValues(new Uint8Array(16)));
+    return `${location.origin}${location.pathname}?r=${g.rt}`;
+  },
+
+  ensureTokens() {
+    const d = Store.data;
+    if (!Cloud.on() || !d.guests.some((g) => !g.rt)) return;
+    d.guests.forEach((g) => this.inviteLink(g));
+    Store.save();
+    this.syncCloud();
+  },
+
+  markSent(id) {
+    const g = Store.guest(id);
+    if (!g) return;
+    g.sentAt = new Date().toISOString();
+    g.invited = true;
+    this.save();
+  },
+
+  inviteText(g) {
+    const w = Store.data.wedding;
+    const when = [w.date ? 'ב' + U.fmtDate(w.date) : '', w.venue ? 'ב' + w.venue : ''].filter(Boolean).join(', ');
+    const link = this.inviteLink(g);
+    return [
+      `שלום ${g.name}! 💍`,
+      `${w.groom} ו${w.bride} מתחתנים בע"ה${when ? ' ' + when : ''}.`,
+      'נשמח מאוד לראות אותך! 🥰',
+      '',
+      link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשר/י הגעה בתשובה להודעה הזאת 🙏',
+    ].join('\n');
+  },
+
+  /* ---------- Guest RSVP page (opened from the personal link) ---------- */
+  async rsvpPage(token) {
+    this.guestMode = true;
+    document.getElementById('brandSub').textContent = 'אישור הגעה';
+    document.getElementById('homeBtn').onclick = null;
+    this.root.innerHTML = '<div class="login fade-in"><div class="rings spin">💌</div><p class="tagline">פותחים את ההזמנה...</p></div>';
+    let r = null;
+    try { r = Cloud.on() ? await Cloud.rsvpGet(token) : null; } catch (e) { console.warn(e.message); }
+    if (!r || !r.g) {
+      this.root.innerHTML = `<div class="login fade-in"><div class="rings">🙈</div>
+        <p class="tagline">לא מצאנו את ההזמנה הזאת.<br>אפשר לבקש מהזוג לשלוח את הקישור שוב.</p></div>`;
+      return;
+    }
+    document.title = `💌 ${r.c} מתחתנים!`;
+    const pick = { a: r.a || '', k: r.k || r.n || 1, m: r.m || '' };
+    const days = U.daysUntil(r.d);
+
+    const paint = () => {
+      this.root.innerHTML = `
+        <div class="rsvp-page fade-in">
+          <div class="rings">💌</div>
+          <p class="rsvp-hello">שלום <b>${U.esc(r.g)}</b>!</p>
+          <div class="couple-names"><span>${U.esc(r.c)}</span></div>
+          <p class="rsvp-sub">מתחתנים בע"ה ומזמינים אותך לשמוח איתם! 💖</p>
+          <div class="couple-meta">${[U.fmtDate(r.d), U.esc(r.v)].filter(Boolean).join(' · ')}</div>
+          ${days > 0 ? `<div class="countdown">עוד <b>${days}</b> ימים לחופה בע"ה 💫</div>` : ''}
+          <div class="login-card rsvp-card">
+            <h3>${r.a ? 'התשובה שלך – אפשר לשנות:' : 'תגיעו? 🥰'}</h3>
+            <div class="rsvp-choices">
+              <button class="choice yes ${pick.a === 'yes' ? 'on' : ''}" data-a="yes"><b>✅</b>מגיעים!</button>
+              <button class="choice maybe ${pick.a === 'maybe' ? 'on' : ''}" data-a="maybe"><b>🤔</b>עוד לא בטוח</button>
+              <button class="choice no ${pick.a === 'no' ? 'on' : ''}" data-a="no"><b>😢</b>לא נוכל להגיע</button>
+            </div>
+            <div class="count-row ${pick.a === 'no' ? 'hidden' : ''}">
+              <span>כמה תהיו? (כולל ילדים)</span>
+              <div class="stepper">
+                <button type="button" data-step="-1">−</button><b id="cnt">${pick.k}</b><button type="button" data-step="1">+</button>
+              </div>
+            </div>
+            <label class="note-row">רוצים לכתוב משהו לזוג? (לא חובה)
+              <textarea id="note" rows="2" maxlength="200" placeholder="מזל טוב! ...">${U.esc(pick.m)}</textarea></label>
+            <button class="btn big" id="send" ${pick.a ? '' : 'disabled'}>שליחה 💖</button>
+          </div>
+        </div>`;
+      const card = this.root.querySelector('.rsvp-card');
+      card.querySelector('#note').oninput = (e) => { pick.m = e.target.value; Sound.tick(); };
+      card.onclick = async (e) => {
+        const c = e.target.closest('[data-a]');
+        if (c) {
+          pick.a = c.dataset.a;
+          if (pick.a === 'yes') Sound.correct(); else if (pick.a === 'no') Sound.wrong(); else Sound.pop();
+          paint();
+          return;
+        }
+        const s = e.target.closest('[data-step]');
+        if (s) {
+          pick.k = U.clamp(pick.k + +s.dataset.step, 1, 30);
+          card.querySelector('#cnt').textContent = pick.k;
+          Sound.tick();
+          FX.pop(card.querySelector('#cnt'));
+          return;
+        }
+        if (e.target.closest('#send') && pick.a) {
+          const btn = card.querySelector('#send');
+          btn.disabled = true;
+          btn.textContent = 'שולחים...';
+          const at = new Date().toISOString();
+          try {
+            await Cloud.rsvpPut(token, { a: pick.a, k: pick.a === 'no' ? 0 : pick.k, m: pick.m.trim().slice(0, 200), at });
+            Object.assign(r, { a: pick.a, k: pick.k, m: pick.m, at });
+            thanks();
+          } catch (err) {
+            console.warn(err.message);
+            Sound.wrong();
+            FX.shake(card);
+            FX.toast('🙈 לא הצלחנו לשלוח. בדקו שיש אינטרנט ונסו שוב', 'bad');
+            btn.disabled = false;
+            btn.textContent = 'שליחה 💖';
+          }
+        }
+      };
+    };
+
+    const thanks = () => {
+      const msg = {
+        yes: ['🎉', 'יש! נתראה בחתונה!', `${U.esc(r.c)} כבר מחכים לך 💃🕺`],
+        maybe: ['🙏', 'תודה שעדכנת!', 'כשתדעו – פשוט פותחים שוב את אותו קישור ומעדכנים.'],
+        no: ['💛', 'תודה שעדכנת', 'חבל שלא תוכלו להגיע. נשמח לשמוע ממך!'],
+      }[pick.a];
+      this.root.innerHTML = `
+        <div class="rsvp-page fade-in">
+          <div class="rings">${msg[0]}</div>
+          <h1 class="rsvp-thanks">${msg[1]}</h1>
+          <p class="tagline">${msg[2]}</p>
+          <button class="btn secondary" id="again">✏️ לשנות תשובה</button>
+        </div>`;
+      if (pick.a === 'yes') { Sound.win(); FX.confetti(); FX.hearts(); } else Sound.bells();
+      this.root.querySelector('#again').onclick = () => paint();
+    };
+
+    paint();
   },
 
   /* ---------- Login ---------- */
@@ -115,6 +283,7 @@ const App = {
     if (!silent) { Sound.bells(); FX.hearts(); }
     this.tab = 'guests';
     this.dash();
+    this.syncCloud();
   },
 
   askCreate() {
@@ -313,7 +482,8 @@ const App = {
       const card = e.target.closest('[data-id]');
       if (!card) return;
       const g = Store.guest(card.dataset.id);
-      if (e.target.closest('[data-act="edit"]')) this.guestForm(g);
+      if (e.target.closest('[data-sent]')) this.markSent(g.id);
+      else if (e.target.closest('[data-act="edit"]')) this.guestForm(g);
       else if (e.target.closest('[data-act="rsvp"]')) {
         g.rsvp = RSVP_NEXT[g.rsvp];
         if (g.rsvp === 'no') g.table = null;
@@ -328,6 +498,7 @@ const App = {
 
   guestList() {
     const d = Store.data;
+    this.ensureTokens();
     const f = this.filter;
     const q = f.q.trim().toLowerCase();
     const qd = U.digits(q);
@@ -341,8 +512,6 @@ const App = {
     }
     if (!list.length) { el.innerHTML = '<div class="empty"><div>🔍</div><p>לא מצאתי אף אחד כזה.</p></div>'; return; }
 
-    const w = d.wedding;
-    const invite = (g) => `שלום ${g.name}! 💍 ${w.groom} ו${w.bride} מתחתנים${w.date ? ' ב' + U.fmtDate(w.date) : ''}${w.venue ? ', ב' + w.venue : ''}. נשמח מאוד לראות אותך! תוכל/י לאשר הגעה?`;
     el.innerHTML = ['groom', 'bride', 'both'].map((side) => {
       const gs = list.filter((g) => g.side === side)
         .sort((a, b) => (RELATION_RANK[a.relation] - RELATION_RANK[b.relation]) || a.group.localeCompare(b.group, 'he') || a.name.localeCompare(b.name, 'he'));
@@ -366,11 +535,13 @@ const App = {
                     ${g.food !== 'regular' ? `<span class="tag">🍽️ ${OPT.food[g.food]}</span>` : ''}
                     ${g.accessible ? '<span class="tag">♿ נגישות</span>' : ''}
                     ${t ? `<span class="tag seat">🪑 ${U.esc(t.name)}</span>` : ''}
+                    ${g.sentAt && g.rsvp === 'pending' ? '<span class="tag">📨 נשלח</span>' : ''}
+                    ${g.rsvpNote ? `<span class="tag note">💬 ${U.esc(g.rsvpNote)}</span>` : ''}
                   </div>
                 </div>
                 <div class="g-actions">
                   ${g.phone ? `<a class="icon-btn" href="${U.telHref(g.phone)}" title="התקשרו">📞</a>
-                  <a class="icon-btn wa" href="${U.waHref(g.phone, invite(g))}" target="_blank" rel="noopener" title="הזמנה בוואטסאפ">💬</a>` : ''}
+                  <a class="icon-btn wa" href="${U.waHref(g.phone, this.inviteText(g))}" target="_blank" rel="noopener" data-sent="${g.id}" title="הזמנה בוואטסאפ">💬</a>` : ''}
                   <button class="icon-btn" data-act="edit" title="עריכה">✏️</button>
                 </div>
               </div>`;
@@ -681,7 +852,7 @@ const App = {
   },
 
   /* ---------- Share (WhatsApp / copy / print) ---------- */
-  report: 'tables',
+  report: 'invite',
   withPhones: false,
 
   reportText() {
@@ -742,12 +913,89 @@ const App = {
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   },
 
+  inviteWho: 'pending',
+  skipped: new Set(),
+
+  invites(p) {
+    const d = Store.data;
+    this.ensureTokens();
+    const open = (g) => g.rsvp === 'pending' || g.rsvp === 'maybe';
+    const pool = d.guests.filter((g) => this.inviteWho === 'all' || open(g));
+    const withPhone = pool.filter((g) => U.digits(g.phone).length >= 9);
+    const noPhone = pool.length - withPhone.length;
+    const sent = withPhone.filter((g) => g.sentAt);
+    const next = withPhone.find((g) => !g.sentAt && !this.skipped.has(g.id));
+    const pct = withPhone.length ? Math.round((100 * sent.length) / withPhone.length) : 0;
+    const ago = (iso) => {
+      const m = Math.round((Date.now() - new Date(iso)) / 60000);
+      return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק'` : m < 1440 ? `לפני ${Math.round(m / 60)} שע'` : `לפני ${Math.round(m / 1440)} ימים`;
+    };
+
+    p.innerHTML += `
+      <div class="panel invite-panel">
+        <p>${Cloud.on()
+          ? 'שולחים לכל מוזמן הודעה בוואטסאפ עם <b>קישור אישי</b>. הוא לוחץ, עונה – והתשובה מופיעה כאן לבד ✨'
+          : 'שולחים לכל מוזמן הודעה בוואטסאפ, והוא עונה בהודעה חוזרת.'}</p>
+        <div class="toolbar seg">
+          <button class="btn ${this.inviteWho === 'pending' ? '' : 'secondary'}" data-who="pending">⏳ מי שעוד לא ענה (${d.guests.filter(open).length})</button>
+          <button class="btn ${this.inviteWho === 'all' ? '' : 'secondary'}" data-who="all">👥 כולם (${d.guests.length})</button>
+        </div>
+        <div class="send-progress"><div class="bar"><i style="width:${pct}%"></i></div><span>נשלחו ${sent.length} מתוך ${withPhone.length}</span></div>
+        ${next ? `
+          <div class="next-send">
+            <a class="btn big wa-btn" href="${U.waHref(next.phone, this.inviteText(next))}" target="_blank" rel="noopener" data-send="${next.id}">💬 לשלוח ל${U.esc(next.name)}</a>
+            <button class="btn secondary" data-skip="${next.id}">דלג ⏭️</button>
+          </div>
+          <p class="muted small">לוחצים → וואטסאפ נפתח עם ההודעה מוכנה → לוחצים "שלח" → חוזרים לכאן לבא בתור.</p>`
+        : withPhone.length ? `
+          <div class="all-sent">🎉 שלחתם לכולם!</div>
+          ${sent.some(open) ? '<button class="btn secondary" id="again">🔄 סבב תזכורת – לשלוח שוב למי שעוד לא ענה</button>' : ''}`
+        : '<p class="muted">אין כאן מוזמנים עם טלפון.</p>'}
+        ${noPhone ? `<p class="muted small">📵 ל-${noPhone} מוזמנים אין טלפון ברשימה.</p>` : ''}
+        <div class="send-list">
+          ${withPhone.map((g) => `
+            <div class="send-row ${g.sentAt ? 'done' : ''}">
+              <span class="s-ic">${RSVP_ICON[g.rsvp]}</span>
+              <span class="s-name">${U.esc(g.name)}</span>
+              <span class="muted small">${g.sentAt ? '📨 ' + ago(g.sentAt) : ''}</span>
+              <a class="icon-btn small wa" href="${U.waHref(g.phone, this.inviteText(g))}" target="_blank" rel="noopener" data-send="${g.id}" title="שליחה">💬</a>
+            </div>`).join('')}
+        </div>
+      </div>`;
+
+    p.onclick = (e) => {
+      const r = e.target.closest('[data-rep]');
+      if (r) { this.report = r.dataset.rep; this.pane(); return; }
+      const who = e.target.closest('[data-who]');
+      if (who) { this.inviteWho = who.dataset.who; this.skipped.clear(); this.pane(); return; }
+      const s = e.target.closest('[data-send]');
+      if (s) {
+        this.markSent(s.dataset.send);
+        Sound.seat();
+        setTimeout(() => { if (this.tab === 'share') this.pane(); }, 400);
+        return;
+      }
+      const sk = e.target.closest('[data-skip]');
+      if (sk) { this.skipped.add(sk.dataset.skip); Sound.pop(); this.pane(); return; }
+      if (e.target.closest('#again')) {
+        d.guests.forEach((g) => { if (open(g)) g.sentAt = ''; });
+        this.skipped.clear();
+        this.save();
+        Sound.pop();
+        this.pane();
+      }
+    };
+  },
+
   share(p) {
-    const kinds = { tables: '🪑 לפי שולחנות', guests: '👥 כל המוזמנים', hall: '🍽️ לאולם (מנות)' };
-    p.innerHTML = `
+    const kinds = { invite: '💌 אישורי הגעה', tables: '🪑 לפי שולחנות', guests: '👥 כל המוזמנים', hall: '🍽️ לאולם (מנות)' };
+    const seg = `
       <div class="toolbar seg">
         ${Object.entries(kinds).map(([k, v]) => `<button class="btn ${this.report === k ? '' : 'secondary'}" data-rep="${k}">${v}</button>`).join('')}
-      </div>
+      </div>`;
+    if (this.report === 'invite') { p.innerHTML = seg; this.invites(p); return; }
+    p.innerHTML = `
+      ${seg}
       ${this.report === 'guests' ? `<label class="check share-opt"><input type="checkbox" id="withPhones" ${this.withPhones ? 'checked' : ''}> 📞 להוסיף טלפונים</label>` : ''}
       <pre class="report" id="report">${U.esc(this.reportText())}</pre>
       <div class="toolbar share-actions">

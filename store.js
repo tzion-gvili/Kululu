@@ -45,6 +45,11 @@ function blankGuest() {
     avoid: [],
     notes: '',
     table: null,
+    rt: '',
+    rsvpSync: '',
+    rsvpAt: '',
+    rsvpNote: '',
+    sentAt: '',
   };
 }
 
@@ -92,8 +97,57 @@ function normalize(d) {
 /* ---------- Cloud: Firestore REST, one document per wedding ---------- */
 const Cloud = {
   on: () => !!(window.CLOUD && CLOUD.apiKey && CLOUD.projectId),
-  url(key) {
-    return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(CLOUD.projectId)}/databases/(default)/documents/weddings/${key}?key=${encodeURIComponent(CLOUD.apiKey)}`;
+  root() { return `projects/${encodeURIComponent(CLOUD.projectId)}/databases/(default)/documents`; },
+  docUrl(path, mask) {
+    let u = `https://firestore.googleapis.com/v1/${this.root()}/${path}?key=${encodeURIComponent(CLOUD.apiKey)}`;
+    if (mask) u += mask.map((f) => '&updateMask.fieldPaths=' + f).join('');
+    return u;
+  },
+  url(key) { return this.docUrl('weddings/' + key); },
+
+  enc(obj) {
+    const fields = {};
+    for (const [k, v] of Object.entries(obj)) {
+      fields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { stringValue: String(v ?? '') };
+    }
+    return { fields };
+  },
+  dec(fields = {}) {
+    const out = {};
+    for (const [k, v] of Object.entries(fields)) out[k] = 'integerValue' in v ? +v.integerValue : v.stringValue;
+    return out;
+  },
+
+  // RSVP: one small document per guest, the id is a random token that only that guest's link carries.
+  async rsvpGet(token) {
+    const r = await fetch(this.docUrl('rsvps/' + token), { cache: 'no-store' });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error('rsvp get ' + r.status);
+    return this.dec((await r.json()).fields);
+  },
+  async rsvpPut(token, obj) {
+    const r = await fetch(this.docUrl('rsvps/' + token, Object.keys(obj)), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(this.enc(obj)),
+    });
+    if (!r.ok) throw new Error('rsvp put ' + r.status);
+  },
+  async rsvpBatch(tokens) {
+    const out = {};
+    for (let i = 0; i < tokens.length; i += 100) {
+      const part = tokens.slice(i, i + 100);
+      const r = await fetch(`https://firestore.googleapis.com/v1/${this.root()}:batchGet?key=${encodeURIComponent(CLOUD.apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documents: part.map((t) => `projects/${CLOUD.projectId}/databases/(default)/documents/rsvps/${t}`) }),
+      });
+      if (!r.ok) throw new Error('rsvp batch ' + r.status);
+      for (const item of await r.json()) {
+        if (item.found) out[item.found.name.split('/').pop()] = this.dec(item.found.fields);
+      }
+    }
+    return out;
   },
   async get(key) {
     const r = await fetch(this.url(key), { cache: 'no-store' });
@@ -272,6 +326,57 @@ const Store = {
     if (!d || !Array.isArray(d.guests)) throw new Error('not a Kululu file');
     this.data = normalize(d);
     this.save();
+  },
+
+  // Gives every guest a personal RSVP link and keeps the invite details (name, couple, date) up to date in the cloud.
+  async ensureInvites() {
+    if (!Cloud.on() || !this.data) return;
+    const w = this.data.wedding;
+    let dirty = false;
+    const jobs = [];
+    for (const g of this.data.guests) {
+      if (!g.rt) { g.rt = Vault.hex(crypto.getRandomValues(new Uint8Array(16))); dirty = true; }
+      const info = { g: g.name, c: `${w.groom} ו${w.bride}`, d: w.date || '', v: w.venue || '', n: Seating.seatsOf(g) };
+      const sig = JSON.stringify(info);
+      if (g.rsvpSync !== sig) jobs.push([g, info, sig]);
+    }
+    if (dirty) this.save();
+    let done = 0;
+    for (const [g, info, sig] of jobs) {
+      try {
+        await Cloud.rsvpPut(g.rt, info);
+        g.rsvpSync = sig;
+        done++;
+      } catch (e) {
+        console.warn(e.message);
+        break;
+      }
+    }
+    if (done) this.save();
+  },
+
+  // Pulls guests' answers from their RSVP pages into the list. Returns the guests that answered since last time.
+  async syncRsvps() {
+    if (!Cloud.on() || !this.data) return [];
+    const gs = this.data.guests.filter((g) => g.rt);
+    if (!gs.length) return [];
+    const docs = await Cloud.rsvpBatch(gs.map((g) => g.rt));
+    const fresh = [];
+    for (const g of gs) {
+      const r = docs[g.rt];
+      if (!r || !r.at || !OPT.rsvp[r.a] || r.at <= (g.rsvpAt || '')) continue;
+      g.rsvp = r.a;
+      if (r.a !== 'no' && r.k > 0) g.count = U.clamp(r.k, 1, 30);
+      g.kids = Math.min(g.kids, g.count);
+      g.rsvpNote = String(r.m || '').slice(0, 200);
+      g.rsvpAt = r.at;
+      if (g.rsvp === 'no') g.table = null;
+      const t = g.table && this.table(g.table);
+      if (t && Seating.used(this.data, t.id) > t.seats) g.table = null;
+      fresh.push(g);
+    }
+    if (fresh.length) this.save();
+    return fresh;
   },
 
   forgetDevice() {
