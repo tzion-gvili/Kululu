@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "wedding": { "groom": "איתי", "bride": "נועה", "date": "2027-03-18", "venue": "אולמי הגפן", "defaultSeats": 12 },
+  "tables": [
+    { "id": "t1", "name": "שולחן 1 – משפחה", "seats": 12, "zone": "dance" },
+    { "id": "t2", "name": "שולחן 2 – משפחה", "seats": 12, "zone": "dance" },
+    { "id": "t3", "name": "שולחן 3", "seats": 12, "zone": "center" },
+    { "id": "t4", "name": "שולחן 4", "seats": 12, "zone": "center" },
+    { "id": "t5", "name": "שולחן 5", "seats": 12, "zone": "center" },
+    { "id": "t6", "name": "שולחן 6", "seats": 10, "zone": "quiet" },
+    { "id": "t7", "name": "שולחן 7", "seats": 10, "zone": "exit" }
+  ],
+  "guests": [
+    { "id": "g01", "name": "אבא ואמא של איתי", "phone": "0500000001", "side": "groom", "relation": "family1", "group": "הורים", "count": 2, "rsvp": "yes", "age": "adult", "vip": true },
+    { "id": "g02", "name": "אבא ואמא של נועה", "phone": "0500000002", "side": "bride", "relation": "family1", "group": "הורים", "count": 2, "rsvp": "yes", "age": "adult", "vip": true },
+    { "id": "g03", "name": "סבתא רחל", "phone": "0500000003", "side": "groom", "relation": "family1", "group": "סבים וסבתות", "count": 1, "rsvp": "yes", "age": "senior", "accessible": true, "pref": "exit" },
+    { "id": "g04", "name": "סבא משה וסבתא אסתר", "phone": "0500000004", "side": "bride", "relation": "family1", "group": "סבים וסבתות", "count": 2, "rsvp": "yes", "age": "senior", "food": "mehadrin" },
+    { "id": "g05", "name": "יואב (אח של איתי) ומיכל", "phone": "0500000005", "side": "groom", "relation": "family1", "group": "אחים", "count": 2, "rsvp": "yes", "age": "young" },
+    { "id": "g06", "name": "שירה (אחות של נועה)", "phone": "0500000006", "side": "bride", "relation": "family1", "group": "אחים", "count": 1, "rsvp": "yes", "age": "young", "food": "vegan" },
+    { "id": "g07", "name": "דוד ושרה כהן", "phone": "0500000007", "side": "groom", "relation": "family2", "group": "דודים", "count": 4, "kids": 2, "rsvp": "maybe", "age": "adult" },
+    { "id": "g08", "name": "דודה אורית", "phone": "0500000008", "side": "bride", "relation": "family2", "group": "דודים", "count": 2, "rsvp": "pending", "age": "adult", "avoid": ["g09"] },
+    { "id": "g09", "name": "דוד שמעון", "phone": "0500000009", "side": "bride", "relation": "family2", "group": "דודים", "count": 2, "rsvp": "yes", "age": "adult", "avoid": ["g08"], "notes": "לא מדבר עם דודה אורית" },
+    { "id": "g10", "name": "עומר", "phone": "0500000010", "side": "groom", "relation": "army", "group": "חברים מהצבא", "count": 1, "rsvp": "yes", "age": "young", "pref": "dance" },
+    { "id": "g11", "name": "רון ודנה", "phone": "0500000011", "side": "groom", "relation": "army", "group": "חברים מהצבא", "count": 2, "rsvp": "yes", "age": "young" },
+    { "id": "g12", "name": "גיא", "phone": "0500000012", "side": "groom", "relation": "army", "group": "חברים מהצבא", "count": 1, "rsvp": "pending", "age": "young" },
+    { "id": "g13", "name": "מאיה ותום", "phone": "0500000013", "side": "bride", "relation": "study", "group": "חברות מהאוניברסיטה", "count": 2, "rsvp": "yes", "age": "young", "food": "veg" },
+    { "id": "g14", "name": "ליאת", "phone": "0500000014", "side": "bride", "relation": "study", "group": "חברות מהאוניברסיטה", "count": 1, "rsvp": "yes", "age": "young" },
+    { "id": "g15", "name": "יעל וניר", "phone": "0500000015", "side": "bride", "relation": "friends", "group": "חברות מהתיכון", "count": 2, "rsvp": "yes", "age": "young", "food": "gluten" },
+    { "id": "g16", "name": "הצוות מהעבודה של איתי", "phone": "", "side": "groom", "relation": "work", "group": "עבודה – איתי", "count": 6, "rsvp": "pending", "age": "adult" },
+    { "id": "g17", "name": "השכנים מהבניין", "phone": "0500000017", "side": "both", "relation": "neighbors", "group": "שכנים", "count": 3, "rsvp": "maybe", "age": "adult" },
+    { "id": "g18", "name": "חברים של ההורים – משפחת לוי", "phone": "0500000018", "side": "groom", "relation": "parents", "group": "חברים של ההורים", "count": 2, "rsvp": "yes", "age": "senior", "pref": "quiet" },
+    { "id": "g19", "name": "בן דוד אלון", "phone": "0500000019", "side": "groom", "relation": "family2", "group": "בני דודים", "count": 1, "rsvp": "no", "age": "young", "notes": "בחו\"ל" }
+  ],
+  "updatedAt": "2026-11-09T00:00:00.000Z"
+}
