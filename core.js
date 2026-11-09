@@ -66,13 +66,18 @@ const Vault = {
       await this.base(code), 128);
     return this.hex(bits);
   },
+  keys: new Map(),
   async aesKey(code, salt) {
-    return crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt, iterations: this.ITER, hash: 'SHA-256' },
-      await this.base(code), { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    const id = code + '|' + this.b64(salt);
+    if (!this.keys.has(id)) {
+      this.keys.set(id, crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: this.ITER, hash: 'SHA-256' },
+        await this.base(code), { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']));
+    }
+    return this.keys.get(id);
   },
-  async lock(obj, code) {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
+  newSalt: () => crypto.getRandomValues(new Uint8Array(16)),
+  async lock(obj, code, salt = this.newSalt()) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await this.aesKey(code, salt);
     const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, this.enc.encode(JSON.stringify(obj)));

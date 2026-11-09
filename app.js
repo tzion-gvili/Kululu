@@ -43,6 +43,19 @@ const App = {
       if (e.target.id === 'modal') this.closeModal();
     });
 
+    Store.onStatus = (s) => this.paintCloud(s);
+    Store.onExternal = () => {
+      FX.toast('🔄 הרשימה עודכנה מטלפון אחר', 'info');
+      this.dash();
+    };
+    const modalOpen = () => !document.getElementById('modal').classList.contains('hidden');
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !modalOpen()) Store.refresh();
+    });
+    addEventListener('online', () => {
+      if (Store.data && localStorage.getItem(Store.pendKey())) Store.push();
+    });
+
     if (!Vault.ready()) {
       this.root.innerHTML = `<div class="login fade-in"><div class="rings">💍</div>
         <p class="tagline">צריך לפתוח את האפליקציה דרך האתר (https) או דרך <b>start.cmd</b>, ולא ישירות מהקובץ.</p></div>`;
@@ -166,8 +179,23 @@ const App = {
   },
 
   /* ---------- Header / shell ---------- */
+  paintCloud(s) {
+    const el = document.getElementById('cloudChip');
+    const look = {
+      saving: ['⏳ שומר...', 'saving'],
+      saved: ['☁️ נשמר', 'saved'],
+      offline: ['📴 נשמר בטלפון', 'offline'],
+    }[s];
+    el.classList.toggle('hidden', !look || !Store.data);
+    if (!look) return;
+    el.textContent = look[0];
+    el.className = 'cloud-chip ' + look[1];
+    el.title = s === 'offline' ? 'אין חיבור כרגע. השינויים שמורים בטלפון ויעלו לבד כשיחזור האינטרנט.' : 'כל שינוי נשמר אוטומטית';
+  },
+
   chrome() {
     const w = Store.data && Store.data.wedding;
+    this.paintCloud(Store.status);
     document.getElementById('logoutBtn').classList.toggle('hidden', !w);
     document.getElementById('countChip').classList.toggle('hidden', !w);
     document.getElementById('brandSub').textContent = w ? `החתונה של ${w.groom} ו${w.bride}` : 'רשימת מוזמנים והושבה';
@@ -671,17 +699,21 @@ const App = {
 
         <section class="panel">
           <h3>📁 שמירה וגיבוי</h3>
-          <p>כל שינוי נשמר <b>במכשיר הזה</b>. כדי לראות את אותה רשימה גם בטלפון אחר:</p>
-          <ol>
-            <li>לחצו <b>הורדת קובץ</b>.</li>
-            <li>מעלים את הקובץ לאתר (GitHub), ליד כל שאר הקבצים.</li>
-            <li>נכנסים מכל טלפון עם אותה תעודת זהות. 🎉</li>
-          </ol>
-          <p class="muted small">שם הקובץ: <span class="code">${Store.fileName()}</span> · הקובץ נעול – רק מי שיודע את הקוד יכול לפתוח אותו.</p>
+          ${Cloud.on()
+            ? `<p>☁️ כל שינוי נשמר <b>לבד, באינטרנט</b>. אפשר להיכנס מכל טלפון עם אותה תעודת זהות – והרשימה שם.</p>
+               <p class="muted small">אין אינטרנט? לא נורא. השינויים נשמרים בטלפון ועולים לבד כשהחיבור חוזר.</p>`
+            : `<p>כל שינוי נשמר <b>במכשיר הזה</b>. כדי לראות את אותה רשימה גם בטלפון אחר:</p>
+               <ol>
+                 <li>לחצו <b>הורדת קובץ</b>.</li>
+                 <li>מעלים את הקובץ לאתר (GitHub), ליד כל שאר הקבצים.</li>
+                 <li>נכנסים מכל טלפון עם אותה תעודת זהות. 🎉</li>
+               </ol>
+               <p class="muted small">שם הקובץ: <span class="code">${Store.fileName()}</span></p>`}
+          <p class="muted small">🔒 הרשימה נעולה – רק מי שיודע את הקוד יכול לפתוח אותה. "הורדת קובץ" = גיבוי ששמור אצלכם.</p>
           <div class="modal-actions">
-            <button class="btn" id="dl">⬇️ הורדת קובץ</button>
+            <button class="btn ${Cloud.on() ? 'secondary' : ''}" id="dl">⬇️ הורדת קובץ (גיבוי)</button>
             <label class="btn secondary file-btn">⬆️ טעינת קובץ<input type="file" accept=".json,application/json" hidden></label>
-            ${Store.hasRemote ? '<button class="btn secondary" id="reload">☁️ לטעון מהאתר</button>' : ''}
+            ${Store.hasRemote ? `<button class="btn secondary" id="reload">${Cloud.on() ? '🔄 לטעון מהאינטרנט' : '☁️ לטעון מהאתר'}</button>` : ''}
           </div>
         </section>
 

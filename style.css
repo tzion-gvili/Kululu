@@ -63,6 +63,10 @@ button:disabled { cursor: not-allowed; }
 .brand-name { font-family: 'Suez One', 'Rubik', serif; font-weight: 400; background: linear-gradient(90deg, #f7c873, #ff7eb3); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .brand small { font-size: 14px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top-actions { display: flex; gap: 10px; align-items: center; }
+.cloud-chip { padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; white-space: nowrap; border: 1px solid var(--line); background: var(--card); transition: background .3s; }
+.cloud-chip.saved { background: rgba(46, 229, 157, .18); border-color: rgba(46, 229, 157, .5); }
+.cloud-chip.saving { background: rgba(247, 200, 115, .18); border-color: rgba(247, 200, 115, .5); animation: pulse 1s ease-in-out infinite; }
+.cloud-chip.offline { background: rgba(255, 92, 122, .18); border-color: rgba(255, 92, 122, .5); }
 .star-total { background: var(--card); border: 1px solid var(--line); padding: 7px 14px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
 .icon-btn {
   display: inline-grid; place-items: center; flex: none;

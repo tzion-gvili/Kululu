@@ -89,12 +89,41 @@ function normalize(d) {
   return out;
 }
 
+/* ---------- Cloud: Firestore REST, one document per wedding ---------- */
+const Cloud = {
+  on: () => !!(window.CLOUD && CLOUD.apiKey && CLOUD.projectId),
+  url(key) {
+    return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(CLOUD.projectId)}/databases/(default)/documents/weddings/${key}?key=${encodeURIComponent(CLOUD.apiKey)}`;
+  },
+  async get(key) {
+    const r = await fetch(this.url(key), { cache: 'no-store' });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error('cloud get ' + r.status);
+    const j = await r.json();
+    return j.fields && j.fields.box ? JSON.parse(j.fields.box.stringValue) : null;
+  },
+  async put(key, box, updatedAt) {
+    const r = await fetch(this.url(key), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { box: { stringValue: JSON.stringify(box) }, updatedAt: { stringValue: updatedAt } } }),
+    });
+    if (!r.ok) throw new Error('cloud put ' + r.status);
+  },
+};
+
 /* ---------- Store: one wedding per code ---------- */
 const Store = {
   code: null,
   key: null,
   data: null,
   hasRemote: false,
+  salt: null,
+  status: 'local',
+  onStatus: null,
+  onExternal: null,
+  _timer: 0,
+  _busy: false,
 
   cleanCode(code) {
     const c = String(code || '').trim().replace(/[\s-]/g, '');
@@ -103,20 +132,44 @@ const Store = {
   lsKey() { return 'kululu_w_' + this.key; },
   fileName() { return `w-${this.key}.json`; },
 
+  pendKey() { return 'kululu_pending_' + this.key; },
+  setStatus(s) {
+    this.status = s;
+    if (this.onStatus) this.onStatus(s);
+  },
+
+  async unbox(j) {
+    if (!j) return null;
+    if (!j.kululu) return j;
+    const d = await Vault.unlock(j, this.code);
+    if (!this.salt) this.salt = Vault.unb64(j.salt);
+    return d;
+  },
+
+  // Cloud first; a static w-*.json next to the app is the fallback (also used for the demo).
   async fetchRemote() {
+    if (Cloud.on()) {
+      try {
+        const box = await Cloud.get(this.key);
+        if (box) return await this.unbox(box);
+      } catch (e) {
+        console.warn(e.message);
+        this.setStatus('offline');
+      }
+    }
     try {
       const r = await fetch(this.fileName(), { cache: 'no-store' });
       if (!r.ok) return null;
-      const j = await r.json();
-      return j && j.kululu ? await Vault.unlock(j, this.code) : j;
+      return await this.unbox(await r.json());
     } catch (e) {
       return null;
     }
   },
 
-  // Returns true when a wedding was found for this code (on this device or on the site).
+  // Returns true when a wedding was found for this code (in the cloud, on this device or on the site).
   async open(code) {
     this.code = code;
+    this.salt = null;
     this.key = await Vault.fileKey(code);
     let local = null;
     try { local = JSON.parse(localStorage.getItem(this.lsKey())); } catch (e) { local = null; }
@@ -127,6 +180,11 @@ const Store = {
       : local || remote;
     if (!pick) return false;
     this.data = normalize(pick);
+    localStorage.setItem(this.lsKey(), JSON.stringify(this.data));
+    if (Cloud.on()) {
+      if (pick === local && (localStorage.getItem(this.pendKey()) || !remote || local.updatedAt !== remote.updatedAt)) this.push();
+      else if (this.status !== 'offline') this.setStatus('saved');
+    } else this.setStatus('local');
     return true;
   },
 
@@ -138,6 +196,54 @@ const Store = {
   save() {
     this.data.updatedAt = new Date().toISOString();
     localStorage.setItem(this.lsKey(), JSON.stringify(this.data));
+    if (!Cloud.on()) return;
+    localStorage.setItem(this.pendKey(), '1');
+    this.setStatus('saving');
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => this.push(), 700);
+  },
+
+  async push() {
+    if (!Cloud.on() || !this.data) return;
+    if (this._busy) { clearTimeout(this._timer); this._timer = setTimeout(() => this.push(), 400); return; }
+    this._busy = true;
+    const key = this.key;
+    const snap = this.data.updatedAt;
+    this.setStatus('saving');
+    try {
+      if (!this.salt) this.salt = Vault.newSalt();
+      const box = await Vault.lock(this.data, this.code, this.salt);
+      await Cloud.put(key, box, snap);
+      if (key === this.key && this.data.updatedAt === snap) {
+        localStorage.removeItem(this.pendKey());
+        this.hasRemote = true;
+        this.setStatus('saved');
+      }
+    } catch (e) {
+      console.warn(e.message);
+      this.setStatus('offline');
+      clearTimeout(this._timer);
+      this._timer = setTimeout(() => this.push(), 10000);
+    } finally {
+      this._busy = false;
+    }
+  },
+
+  // When the app comes back to the screen, take a newer version saved from another phone.
+  async refresh() {
+    if (!Cloud.on() || !this.data || this._busy || localStorage.getItem(this.pendKey())) return;
+    try {
+      const box = await Cloud.get(this.key);
+      const remote = box && await this.unbox(box);
+      if (remote && String(remote.updatedAt) > String(this.data.updatedAt)) {
+        this.data = normalize(remote);
+        localStorage.setItem(this.lsKey(), JSON.stringify(this.data));
+        if (this.onExternal) this.onExternal();
+      }
+      this.setStatus('saved');
+    } catch (e) {
+      this.setStatus('offline');
+    }
   },
 
   async reloadRemote() {
@@ -145,6 +251,7 @@ const Store = {
     if (!remote) return false;
     this.data = normalize(remote);
     localStorage.setItem(this.lsKey(), JSON.stringify(this.data));
+    localStorage.removeItem(this.pendKey());
     return true;
   },
 
@@ -167,7 +274,10 @@ const Store = {
     this.save();
   },
 
-  forgetDevice() { localStorage.removeItem(this.lsKey()); },
+  forgetDevice() {
+    localStorage.removeItem(this.lsKey());
+    localStorage.removeItem(this.pendKey());
+  },
 
   guest(id) { return this.data.guests.find((g) => g.id === id); },
   table(id) { return this.data.tables.find((t) => t.id === id); },

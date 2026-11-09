@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // One document per wedding. The id is derived from the couple's code, so only they can find it.
+    // The content is encrypted in the browser with the same code.
+    match /weddings/{key} {
+      allow get: if key.matches('^[0-9a-f]{32}$');
+      allow list, delete: if false;
+      allow create, update: if key.matches('^[0-9a-f]{32}$')
+        && request.resource.data.keys().hasOnly(['box', 'updatedAt'])
+        && request.resource.data.box is string
+        && request.resource.data.box.size() < 900000
+        && request.resource.data.updatedAt is string
+        && request.resource.data.updatedAt.size() < 40;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Suez+One&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div class="bg-grid"></div>
@@ -21,6 +21,7 @@
       <small id="brandSub">רשימת מוזמנים והושבה</small>
     </button>
     <div class="top-actions">
+      <div class="cloud-chip hidden" id="cloudChip"></div>
       <div class="star-total hidden" id="countChip" title="כמה אנשים מגיעים (בלי ה&quot;לא מגיע&quot;)">👥 <span id="headCount">0</span></div>
       <button id="muteBtn" class="icon-btn" title="צליל">🔊</button>
       <button id="logoutBtn" class="icon-btn hidden" title="יציאה">🚪</button>
@@ -44,10 +45,11 @@
   <div id="toast" class="toast"></div>
   <div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
 
-  <script src="core.js?v=1"></script>
-  <script src="store.js?v=2"></script>
+  <script src="firebase-config.js?v=1"></script>
+  <script src="core.js?v=2"></script>
+  <script src="store.js?v=3"></script>
   <script src="seating.js?v=4"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
   <script>App.start();</script>
 </body>
 </html>
