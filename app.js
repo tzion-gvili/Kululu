@@ -256,6 +256,7 @@ const App = {
         <nav class="tabs" id="tabs">
           <button data-tab="guests">👥 מוזמנים</button>
           <button data-tab="seating">🪑 הושבה</button>
+          <button data-tab="share">📤 שיתוף</button>
           <button data-tab="settings">⚙️ הגדרות</button>
         </nav>
         <div id="pane"></div>
@@ -283,6 +284,7 @@ const App = {
     void p.offsetWidth;
     p.classList.add('fade-in');
     if (this.tab === 'seating') this.seating(p);
+    else if (this.tab === 'share') this.share(p);
     else if (this.tab === 'settings') this.settings(p);
     else this.guests(p);
   },
@@ -675,6 +677,111 @@ const App = {
       this.closeModal();
       Sound.correct();
       this.pane();
+    };
+  },
+
+  /* ---------- Share (WhatsApp / copy / print) ---------- */
+  report: 'tables',
+  withPhones: false,
+
+  reportText() {
+    const d = Store.data;
+    const w = d.wedding;
+    const line = '━━━━━━━━━━━━';
+    const n = (g) => Seating.seatsOf(g);
+    const who = (g) => `• ${g.name}${n(g) > 1 ? ` (${n(g)})` : ''}${g.rsvp !== 'yes' ? ' ❔' : ''}`;
+    const sum = (gs) => gs.reduce((s, g) => s + n(g), 0);
+    const coming = d.guests.filter(Seating.attending);
+    const head = [`💍 *${w.groom} ו${w.bride}*`, [U.fmtDate(w.date), w.venue].filter(Boolean).join(' · ')].filter(Boolean);
+    const out = [];
+
+    if (this.report === 'tables') {
+      out.push(...head, '🪑 *סידור הושבה*', line);
+      for (const t of d.tables) {
+        const gs = coming.filter((g) => g.table === t.id);
+        if (!gs.length) continue;
+        out.push(`🍽️ *${t.name}* (${sum(gs)}/${t.seats}) · ${OPT.zone[t.zone]}`, ...gs.map(who), '');
+      }
+      const wait = coming.filter((g) => !g.table);
+      if (wait.length) out.push(`🙋 *עוד בלי שולחן* (${sum(wait)})`, ...wait.map(who), '');
+      out.push(line, `מגיעים: ${sum(coming)} · יש להם מקום: ${sum(coming.filter((g) => g.table))}`);
+      if (coming.some((g) => g.rsvp !== 'yes')) out.push('❔ = עוד לא אישר/ה הגעה');
+    } else if (this.report === 'guests') {
+      out.push(...head, '👥 *רשימת המוזמנים*', line);
+      for (const side of ['groom', 'bride', 'both']) {
+        const gs = d.guests.filter((g) => g.side === side);
+        if (!gs.length) continue;
+        out.push(`*${this.sideName(side)}* (${sum(gs)})`);
+        gs.forEach((g) => {
+          const t = g.table && Store.table(g.table);
+          out.push(`${RSVP_ICON[g.rsvp]} ${g.name}${n(g) > 1 ? ` (${n(g)})` : ''}${t ? ` · ${t.name}` : ''}${this.withPhones && g.phone ? ` · ${U.fmtPhone(g.phone)}` : ''}`);
+        });
+        out.push('');
+      }
+      const by = (r) => sum(d.guests.filter((g) => g.rsvp === r));
+      out.push(line, `✅ מגיעים ${by('yes')} · 🤔 אולי ${by('maybe')} · ⏳ ממתינים ${by('pending')} · ❌ לא מגיעים ${by('no')}`);
+    } else {
+      out.push(...head, '🍽️ *לאולם – מנות לפי שולחן*', line);
+      const meals = (gs) => {
+        const kids = gs.reduce((s, g) => s + (+g.kids || 0), 0);
+        const special = {};
+        gs.forEach((g) => { if (g.food !== 'regular') special[g.food] = (special[g.food] || 0) + n(g); });
+        return [kids ? `🧒 ילדים ${kids}` : '', ...Object.entries(special).map(([k, v]) => `${OPT.food[k]} ${v}`)].filter(Boolean).join(' · ');
+      };
+      for (const t of d.tables) {
+        const gs = coming.filter((g) => g.table === t.id);
+        if (!gs.length) continue;
+        const m = meals(gs);
+        out.push(`*${t.name}*: ${sum(gs)} מנות${m ? ` (${m})` : ''}`);
+      }
+      const wait = coming.filter((g) => !g.table);
+      if (wait.length) out.push(`עוד בלי שולחן: ${sum(wait)}`);
+      const all = meals(coming);
+      out.push(line, `*סה"כ: ${sum(coming)} מנות*${all ? ` (${all})` : ''}`, `מתוכם אישרו: ${sum(coming.filter((g) => g.rsvp === 'yes'))}`);
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  },
+
+  share(p) {
+    const kinds = { tables: '🪑 לפי שולחנות', guests: '👥 כל המוזמנים', hall: '🍽️ לאולם (מנות)' };
+    p.innerHTML = `
+      <div class="toolbar seg">
+        ${Object.entries(kinds).map(([k, v]) => `<button class="btn ${this.report === k ? '' : 'secondary'}" data-rep="${k}">${v}</button>`).join('')}
+      </div>
+      ${this.report === 'guests' ? `<label class="check share-opt"><input type="checkbox" id="withPhones" ${this.withPhones ? 'checked' : ''}> 📞 להוסיף טלפונים</label>` : ''}
+      <pre class="report" id="report">${U.esc(this.reportText())}</pre>
+      <div class="toolbar share-actions">
+        <button class="btn wa-btn" id="toWa">💬 שליחה בוואטסאפ</button>
+        ${navigator.share ? '<button class="btn secondary" id="toShare">📤 שיתוף…</button>' : ''}
+        <button class="btn secondary" id="toCopy">📋 העתקה</button>
+        <button class="btn secondary" id="toPrint">🖨️ הדפסה</button>
+      </div>`;
+    p.onclick = (e) => {
+      const r = e.target.closest('[data-rep]');
+      if (r) { this.report = r.dataset.rep; this.pane(); }
+    };
+    const ph = p.querySelector('#withPhones');
+    if (ph) ph.onchange = () => { this.withPhones = ph.checked; this.pane(); };
+    const text = () => this.reportText();
+    p.querySelector('#toWa').onclick = () => {
+      window.open('https://wa.me/?text=' + encodeURIComponent(text()), '_blank', 'noopener');
+    };
+    const sh = p.querySelector('#toShare');
+    if (sh) sh.onclick = () => navigator.share({ text: text() }).catch(() => {});
+    p.querySelector('#toCopy').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(text());
+        Sound.correct();
+        FX.toast('📋 הועתק! עכשיו מדביקים בוואטסאפ', 'good');
+      } catch (e) {
+        Sound.wrong();
+        FX.toast('🙈 לא הצלחתי להעתיק – סמנו את הטקסט והעתיקו ביד', 'bad');
+      }
+    };
+    p.querySelector('#toPrint').onclick = () => {
+      document.body.classList.add('printing');
+      window.print();
+      setTimeout(() => document.body.classList.remove('printing'), 500);
     };
   },
 
