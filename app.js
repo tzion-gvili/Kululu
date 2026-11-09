@@ -123,8 +123,8 @@ const App = {
     const when = [w.date ? 'ב' + U.fmtDate(w.date) : '', w.venue ? 'ב' + w.venue : ''].filter(Boolean).join(', ');
     const link = this.inviteLink(g);
     return [
-      `שלום ${g.name}! 💍`,
-      `${w.groom} ו${w.bride} מתחתנים בע"ה${when ? ' ' + when : ''}.`,
+      `שלום ${g.name}! ${Ev.of(w).icon}`,
+      `${Ev.inviteLine(w)} בע"ה${when ? ' ' + when : ''}.`,
       'נשמח מאוד לראות אותך! 🥰',
       '',
       link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשר/י הגעה בתשובה להודעה הזאת 🙏',
@@ -141,22 +141,23 @@ const App = {
     try { r = Cloud.on() ? await Cloud.rsvpGet(token) : null; } catch (e) { console.warn(e.message); }
     if (!r || !r.g) {
       this.root.innerHTML = `<div class="login fade-in"><div class="rings">🙈</div>
-        <p class="tagline">לא מצאנו את ההזמנה הזאת.<br>אפשר לבקש מהזוג לשלוח את הקישור שוב.</p></div>`;
+        <p class="tagline">לא מצאנו את ההזמנה הזאת.<br>אפשר לבקש ממי ששלח לשלוח את הקישור שוב.</p></div>`;
       return;
     }
-    document.title = `💌 ${r.c} מתחתנים!`;
+    const ev = Ev.fromRsvp(r.c);
+    document.title = ev.wedding ? `💌 ${ev.title} מתחתנים!` : `💌 ${ev.title}`;
     const pick = { a: r.a || '', k: r.k || r.n || 1, m: r.m || '' };
     const days = U.daysUntil(r.d);
 
     const paint = () => {
       this.root.innerHTML = `
         <div class="rsvp-page fade-in">
-          <div class="rings">💌</div>
+          <div class="rings">${ev.wedding ? '💌' : ev.e.icon}</div>
           <p class="rsvp-hello">שלום <b>${U.esc(r.g)}</b>!</p>
-          <div class="couple-names"><span>${U.esc(r.c)}</span></div>
-          <p class="rsvp-sub">מתחתנים בע"ה ומזמינים אותך לשמוח איתם! 💖</p>
+          <div class="couple-names"><span>${U.esc(ev.title)}</span></div>
+          <p class="rsvp-sub">${ev.wedding ? 'מתחתנים בע"ה ומזמינים אותך לשמוח איתם!' : 'בע"ה – ומזמינים אותך לשמוח איתנו!'} 💖</p>
           <div class="couple-meta">${[U.fmtDate(r.d), U.esc(r.v)].filter(Boolean).join(' · ')}</div>
-          ${days > 0 ? `<div class="countdown">עוד <b>${days}</b> ימים לחופה בע"ה 💫</div>` : ''}
+          ${days > 0 ? `<div class="countdown">עוד <b>${days}</b> ימים ${ev.e.to} בע"ה 💫</div>` : ''}
           <div class="login-card rsvp-card">
             <h3>${r.a ? 'התשובה שלך – אפשר לשנות:' : 'תגיעו? 🥰'}</h3>
             <div class="rsvp-choices">
@@ -170,7 +171,7 @@ const App = {
                 <button type="button" data-step="-1">−</button><b id="cnt">${pick.k}</b><button type="button" data-step="1">+</button>
               </div>
             </div>
-            <label class="note-row">רוצים לכתוב משהו לזוג? (לא חובה)
+            <label class="note-row">רוצים לכתוב משהו ${ev.wedding ? 'לזוג' : 'למשפחה'}? (לא חובה)
               <textarea id="note" rows="2" maxlength="200" placeholder="מזל טוב! ...">${U.esc(pick.m)}</textarea></label>
             <button class="btn big" id="send" ${pick.a ? '' : 'disabled'}>שליחה 💖</button>
           </div>
@@ -216,7 +217,7 @@ const App = {
 
     const thanks = () => {
       const msg = {
-        yes: ['🎉', 'יש! נתראה בחתונה!', `${U.esc(r.c)} כבר מחכים לך 💃🕺`],
+        yes: ['🎉', `יש! נתראה ב${ev.e.name}!`, `${ev.wedding ? U.esc(ev.title) + ' כבר' : 'כבר'} מחכים לך 💃🕺`],
         maybe: ['🙏', 'תודה שעדכנת!', 'כשתדעו – פשוט פותחים שוב את אותו קישור ומעדכנים.'],
         no: ['💛', 'תודה שעדכנת', 'חבל שלא תוכלו להגיע. נשמח לשמוע ממך!'],
       }[pick.a];
@@ -243,7 +244,7 @@ const App = {
       <div class="login fade-in">
         <div class="rings">💍</div>
         <h1><span class="hl">קולולו</span></h1>
-        <p class="tagline">רשימת המוזמנים וההושבה של החתונה שלכם – במקום אחד, בכל טלפון.</p>
+        <p class="tagline">רשימת המוזמנים וההושבה של האירוע שלכם – חתונה, חינה, בר/בת מצווה או ברית. במקום אחד, בכל טלפון.</p>
         <form class="login-card" id="loginForm" autocomplete="off">
           <label for="code">הכניסו תעודת זהות (או קוד אישי)</label>
           <div class="code-row">
@@ -251,7 +252,7 @@ const App = {
             <button type="button" class="icon-btn" id="peek" title="הצג">👁️</button>
           </div>
           <button class="btn big" type="submit">כניסה 💖</button>
-          <p class="muted small">כל זוג רואה רק את החתונה שלו. הקובץ נעול עם הקוד שלכם.</p>
+          <p class="muted small">כל משפחה רואה רק את האירוע שלה. הקובץ נעול עם הקוד שלכם.</p>
         </form>
       </div>`;
     const input = this.root.querySelector('#code');
@@ -270,7 +271,7 @@ const App = {
   },
 
   async enter(code, silent) {
-    this.root.innerHTML = '<div class="login fade-in"><div class="rings spin">💍</div><p class="tagline">פותחים את החתונה...</p></div>';
+    this.root.innerHTML = '<div class="login fade-in"><div class="rings spin">💍</div><p class="tagline">פותחים את האירוע...</p></div>';
     let ok = false;
     try { ok = await Store.open(code); } catch (e) { console.error(e); }
     if (!ok) {
@@ -289,24 +290,24 @@ const App = {
   askCreate() {
     this.openModal(`
       <div class="result-emoji">💌</div>
-      <h2>חתונה חדשה?</h2>
-      <p>לא מצאנו חתונה לקוד הזה. בואו נפתח אחת!</p>
+      <h2>אירוע חדש?</h2>
+      <p>לא מצאנו אירוע לקוד הזה. בואו נפתח אחד!</p>
       <form id="newForm" class="form">
-        <label>שם החתן<input name="groom" required maxlength="30" placeholder="למשל: איתי"></label>
-        <label>שם הכלה<input name="bride" required maxlength="30" placeholder="למשל: נועה"></label>
-        <label>תאריך החתונה<input name="date" type="date"></label>
+        ${this.eventFields({ type: 'wedding', hero: '', groom: '', bride: '' })}
+        <label>תאריך<input name="date" type="date"></label>
         <div class="modal-actions">
-          <button class="btn" type="submit">פותחים חתונה 🎉</button>
+          <button class="btn" type="submit">פותחים 🎉</button>
           <label class="btn secondary file-btn">יש לי קובץ ⬆️<input type="file" accept=".json,application/json" hidden></label>
           <button class="btn secondary" type="button" data-m="close">ביטול</button>
         </div>
       </form>`);
     const card = document.getElementById('modalCard');
     card.querySelector('[data-m="close"]').onclick = () => { this.closeModal(); this.login(); };
+    this.wireEventFields(card);
     card.querySelector('#newForm').onsubmit = (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
-      Store.create(f.get('groom').trim(), f.get('bride').trim(), f.get('date'));
+      Store.create(f.get('groom').trim(), f.get('bride').trim(), f.get('date'), f.get('type'), String(f.get('hero') || '').trim());
       sessionStorage.setItem('kululu_code', Store.code);
       this.closeModal();
       Sound.bells();
@@ -315,6 +316,30 @@ const App = {
       this.dash();
     };
     card.querySelector('input[type=file]').onchange = (e) => this.importFrom(e.target.files[0], true);
+  },
+
+  // Event type + the two sides' names (+ the child's name for bar/bat mitzvah and brit).
+  eventFields(w) {
+    const e = Ev.of(w);
+    const types = Object.fromEntries(Object.entries(EVENTS).map(([k, v]) => [k, `${v.icon} ${v.name}`]));
+    return `
+      <label>איזה אירוע?<select name="type">${opts(types, EVENTS[w.type] ? w.type : 'wedding')}</select></label>
+      <label class="ev-hero ${e.hero ? '' : 'hidden'}"><span>שם ${e.hero}</span><input name="hero" maxlength="30" value="${U.esc(w.hero || '')}"></label>
+      <label><span class="ev-a">שם ${e.a}</span><input name="groom" required maxlength="30" value="${U.esc(w.groom)}"></label>
+      <label><span class="ev-b">שם ${e.b}</span><input name="bride" required maxlength="30" value="${U.esc(w.bride)}"></label>`;
+  },
+
+  wireEventFields(root) {
+    const sel = root.querySelector('select[name="type"]');
+    sel.onchange = () => {
+      const e = EVENTS[sel.value];
+      const hero = root.querySelector('.ev-hero');
+      hero.classList.toggle('hidden', !e.hero);
+      hero.querySelector('span').textContent = 'שם ' + e.hero;
+      root.querySelector('.ev-a').textContent = 'שם ' + e.a;
+      root.querySelector('.ev-b').textContent = 'שם ' + e.b;
+      Sound.pop();
+    };
   },
 
   async importFrom(file, fresh) {
@@ -367,8 +392,9 @@ const App = {
     this.paintCloud(Store.status);
     document.getElementById('logoutBtn').classList.toggle('hidden', !w);
     document.getElementById('countChip').classList.toggle('hidden', !w);
-    document.getElementById('brandSub').textContent = w ? `החתונה של ${w.groom} ו${w.bride}` : 'רשימת מוזמנים והושבה';
-    document.title = w ? `קולולו – ${w.groom} ו${w.bride} 💍` : 'קולולו – רשימת מוזמנים והושבה';
+    const title = w && (Ev.isWedding(w) ? `החתונה של ${Ev.pair(w)}` : Ev.headline(w));
+    document.getElementById('brandSub').textContent = w ? title : 'רשימת מוזמנים והושבה';
+    document.title = w ? `קולולו – ${title} ${Ev.of(w).icon}` : 'קולולו – רשימת מוזמנים והושבה';
     if (w) document.getElementById('headCount').textContent = this.stats().coming;
   },
 
@@ -408,15 +434,20 @@ const App = {
     this.chrome();
     const w = Store.data.wedding;
     const days = U.daysUntil(w.date);
+    const ev = Ev.of(w);
     const count = days == null ? 'עוד לא קבעתם תאריך? אפשר להוסיף בהגדרות ⚙️'
-      : days > 1 ? `עוד <b>${days}</b> ימים לחופה בע"ה 💫`
-      : days === 1 ? 'מחר החתונה בע"ה! 🥳'
-      : days === 0 ? 'היום החתונה! מזל טוב! 🎉'
+      : days > 1 ? `עוד <b>${days}</b> ימים ${ev.to} בע"ה 💫`
+      : days === 1 ? `מחר ${ev.the} בע"ה! 🥳`
+      : days === 0 ? `היום ${ev.the}! מזל טוב! 🎉`
       : 'מזל טוב! 💖';
+    const names = w.hero && ev.hero
+      ? `<span>${U.esc(w.hero)}</span>`
+      : `<span>${U.esc(w.groom)}</span>${w.bride ? `<b class="amp">${Ev.isWedding(w) ? '💞' : ev.icon}</b><span>${U.esc(w.bride)}</span>` : ''}`;
     this.root.innerHTML = `
       <div class="dash fade-in">
         <section class="couple">
-          <div class="couple-names"><span>${U.esc(w.groom)}</span><b class="amp">💞</b><span>${U.esc(w.bride)}</span></div>
+          ${Ev.isWedding(w) ? '' : `<div class="couple-meta">${ev.icon} ${ev.name}</div>`}
+          <div class="couple-names">${names}</div>
           <div class="couple-meta">${[U.fmtDate(w.date), U.esc(w.venue)].filter(Boolean).join(' · ')}</div>
           <div class="countdown">${count}</div>
         </section>
@@ -461,7 +492,8 @@ const App = {
   /* ---------- Guests ---------- */
   sideName(side) {
     const w = Store.data.wedding;
-    return side === 'groom' ? `צד החתן – ${w.groom}` : side === 'bride' ? `צד הכלה – ${w.bride}` : 'משותף';
+    const s = Ev.sides(w)[side] || 'משותף';
+    return side === 'groom' ? `${s} – ${w.groom}` : side === 'bride' ? `${s} – ${w.bride}` : s;
   },
 
   guests(p) {
@@ -469,7 +501,7 @@ const App = {
     p.innerHTML = `
       <div class="toolbar">
         <input id="q" class="search" type="search" placeholder="🔍 חיפוש: שם, טלפון או קבוצה" value="${U.esc(f.q)}">
-        <select id="fSide"><option value="all">כל הצדדים</option>${opts(OPT.side, f.side)}</select>
+        <select id="fSide"><option value="all">כל הצדדים</option>${opts(Ev.sides(Store.data.wedding), f.side)}</select>
         <select id="fRsvp"><option value="all">כל התשובות</option>${opts(OPT.rsvp, f.rsvp)}</select>
         <button class="btn" id="addGuest">➕ מוזמן חדש</button>
         ${U.canPickContacts() ? '<button class="btn secondary" id="fromContacts">📇 מאנשי הקשר</button>' : ''}
@@ -597,7 +629,8 @@ const App = {
     const groups = [...new Set(d.guests.map((o) => o.group.trim()).filter(Boolean))];
     const others = d.guests.filter((o) => o.id !== x.id);
     const w = d.wedding;
-    const sides = { groom: `צד החתן (${w.groom})`, bride: `צד הכלה (${w.bride})`, both: 'משותף' };
+    const sn = Ev.sides(w);
+    const sides = { groom: `${sn.groom} (${w.groom})`, bride: `${sn.bride} (${w.bride})`, both: sn.both };
 
     this.openModal(`
       <h2>${isNew ? '➕ מוזמן חדש' : '✏️ ' + U.esc(x.name)}</h2>
@@ -741,7 +774,7 @@ const App = {
       </div>
       <p class="hint-line">${pickedG
         ? `👉 בחרתם את <b>${U.esc(pickedG.name)}</b>. עכשיו לחצו על שולחן (או על "מחכים לשולחן").`
-        : 'לחצו על מוזמן ואז על שולחן כדי להעביר אותו. במחשב אפשר גם לגרור. <span class="legend"><i class="lg groom"></i>חתן <i class="lg bride"></i>כלה <i class="lg both"></i>משותף · <i>?</i> = עוד לא אישר</span>'}</p>
+        : `לחצו על מוזמן ואז על שולחן כדי להעביר אותו. במחשב אפשר גם לגרור. <span class="legend"><i class="lg groom"></i>${Ev.sides(Store.data.wedding).groom} <i class="lg bride"></i>${Ev.sides(Store.data.wedding).bride} <i class="lg both"></i>משותף · <i>?</i> = עוד לא אישר</span>`}</p>
       <div class="pool drop" data-table="">
         <h3>🙋 מחכים לשולחן <span class="chip">${waitSeats} מקומות</span></h3>
         <div class="chips">${waiting.map(chip).join('') || '<span class="muted">כולם כבר יושבים! 🎉</span>'}</div>
@@ -918,7 +951,7 @@ const App = {
     const who = (g) => `• ${g.name}${n(g) > 1 ? ` (${n(g)})` : ''}${g.rsvp !== 'yes' ? ' ❔' : ''}`;
     const sum = (gs) => gs.reduce((s, g) => s + n(g), 0);
     const coming = d.guests.filter(Seating.attending);
-    const head = [`💍 *${w.groom} ו${w.bride}*`, [U.fmtDate(w.date), w.venue].filter(Boolean).join(' · ')].filter(Boolean);
+    const head = [`${Ev.of(w).icon} *${Ev.isWedding(w) ? Ev.pair(w) : Ev.headline(w)}*`, [U.fmtDate(w.date), w.venue].filter(Boolean).join(' · ')].filter(Boolean);
     const out = [];
 
     if (this.report === 'tables') {
@@ -1095,10 +1128,9 @@ const App = {
     p.innerHTML = `
       <div class="settings">
         <section class="panel">
-          <h3>💍 הזוג</h3>
+          <h3>${Ev.of(w).icon} האירוע</h3>
           <form id="wForm" class="form grid2">
-            <label>שם החתן<input name="groom" required maxlength="30" value="${U.esc(w.groom)}"></label>
-            <label>שם הכלה<input name="bride" required maxlength="30" value="${U.esc(w.bride)}"></label>
+            ${this.eventFields(w)}
             <label>תאריך<input name="date" type="date" value="${U.esc(w.date)}"></label>
             <label>מקום (אולם / גן)<input name="venue" maxlength="60" value="${U.esc(w.venue)}"></label>
             <label>מקומות בשולחן רגיל<input name="defaultSeats" type="number" min="1" max="60" value="${w.defaultSeats}"></label>
@@ -1136,10 +1168,13 @@ const App = {
         </section>
       </div>`;
 
+    this.wireEventFields(p.querySelector('#wForm'));
     p.querySelector('#wForm').onsubmit = (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
-      ['groom', 'bride', 'date', 'venue'].forEach((k) => { w[k] = String(f.get(k) || '').trim(); });
+      ['type', 'hero', 'groom', 'bride', 'date', 'venue'].forEach((k) => { w[k] = String(f.get(k) || '').trim(); });
+      if (!EVENTS[w.type]) w.type = 'wedding';
+      if (!EVENTS[w.type].hero) w.hero = '';
       w.defaultSeats = U.clamp(+f.get('defaultSeats') || 12, 1, 60);
       const want = U.clamp(+f.get('tables') || 0, 0, 200);
       if (want > d.tables.length) d.tables.push(...makeTables(want - d.tables.length, w.defaultSeats, d.tables.length + 1));

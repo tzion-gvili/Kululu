@@ -20,6 +20,44 @@ const OPT = {
   zone: { dance: 'ליד הרחבה', center: 'מרכז האולם', quiet: 'אזור שקט', exit: 'ליד היציאה' },
   pref: { any: 'לא משנה', dance: 'ליד הרחבה', center: 'מרכז האולם', quiet: 'אזור שקט', exit: 'ליד היציאה' },
 };
+/* ---------- Event types: same app, only the words change. groom/bride = the two sides ---------- */
+const EVENTS = {
+  wedding: { name: 'חתונה', the: 'החתונה', to: 'לחופה', icon: '💍', a: 'החתן', b: 'הכלה', hero: '' },
+  henna: { name: 'חינה', the: 'החינה', to: 'לחינה', icon: '🪬', a: 'החתן', b: 'הכלה', hero: '' },
+  barmitzvah: { name: 'בר מצווה', the: 'בר המצווה', to: 'לבר המצווה', icon: '📜', a: 'אבא', b: 'אמא', hero: 'חתן בר המצווה' },
+  batmitzvah: { name: 'בת מצווה', the: 'בת המצווה', to: 'לבת המצווה', icon: '👑', a: 'אבא', b: 'אמא', hero: 'בת המצווה' },
+  brit: { name: 'ברית', the: 'הברית', to: 'לברית', icon: '👶', a: 'אבא', b: 'אמא', hero: 'התינוק (אם כבר יודעים)' },
+};
+const Ev = {
+  of: (w) => EVENTS[w && w.type] || EVENTS.wedding,
+  isWedding: (w) => Ev.of(w) === EVENTS.wedding,
+  pair: (w) => [w.groom, w.bride].filter(Boolean).join(' ו'),
+  // "איתי ונועה מתחתנים" · "בר המצווה של יוסי" · "החינה של איתי ונועה"
+  headline(w) {
+    const e = Ev.of(w);
+    if (e === EVENTS.wedding) return `${Ev.pair(w)} מתחתנים`;
+    if (e === EVENTS.brit && !w.hero) return `ברית לבן של ${Ev.pair(w)}`;
+    return `${e.the} של ${w.hero || Ev.pair(w)}`;
+  },
+  // "איתי ונועה מתחתנים" · "מזמינים אותך לבר המצווה של יוסי"
+  inviteLine(w) {
+    const e = Ev.of(w);
+    if (e === EVENTS.wedding) return Ev.headline(w);
+    if (e === EVENTS.brit && !w.hero) return `מזמינים אותך לברית לבן של ${Ev.pair(w)}`;
+    return `מזמינים אותך ${e.to} של ${w.hero || Ev.pair(w)}`;
+  },
+  sides(w) {
+    const e = Ev.of(w);
+    return { groom: `צד ${e.a}`, bride: `צד ${e.b}`, both: 'משותף' };
+  },
+  // What goes into the guest's RSVP doc. Weddings keep the old plain text so links already sent stay the same.
+  rsvpTitle: (w) => (Ev.isWedding(w) ? Ev.pair(w) : `${w.type}:${Ev.headline(w)}`).slice(0, 80),
+  fromRsvp(c) {
+    const m = /^([a-z]+):(.*)$/.exec(c || '');
+    return m && EVENTS[m[1]] ? { e: EVENTS[m[1]], wedding: false, title: m[2] } : { e: EVENTS.wedding, wedding: true, title: c || '' };
+  },
+};
+
 const RSVP_ICON = { pending: '⏳', yes: '✅', maybe: '🤔', no: '❌' };
 const RSVP_NEXT = { pending: 'yes', yes: 'maybe', maybe: 'no', no: 'pending' };
 // Lower = seated first (closest people get the best tables).
@@ -62,10 +100,10 @@ function makeTables(n, seats, start = 1) {
   }));
 }
 
-function blankWedding(groom, bride, date) {
+function blankWedding(groom, bride, date, type, hero) {
   return {
     version: 1,
-    wedding: { groom, bride, date: date || '', venue: '', defaultSeats: 12 },
+    wedding: { type: EVENTS[type] ? type : 'wedding', hero: hero || '', groom, bride, date: date || '', venue: '', defaultSeats: 12 },
     tables: makeTables(10, 12),
     guests: [],
     updatedAt: new Date().toISOString(),
@@ -242,8 +280,8 @@ const Store = {
     return true;
   },
 
-  create(groom, bride, date) {
-    this.data = blankWedding(groom, bride, date);
+  create(groom, bride, date, type, hero) {
+    this.data = blankWedding(groom, bride, date, type, hero);
     this.save();
   },
 
@@ -336,7 +374,7 @@ const Store = {
     const jobs = [];
     for (const g of this.data.guests) {
       if (!g.rt) { g.rt = Vault.hex(crypto.getRandomValues(new Uint8Array(16))); dirty = true; }
-      const info = { g: g.name, c: `${w.groom} ו${w.bride}`, d: w.date || '', v: w.venue || '', n: Seating.seatsOf(g) };
+      const info = { g: g.name, c: Ev.rsvpTitle(w), d: w.date || '', v: w.venue || '', n: Seating.seatsOf(g) };
       const sig = JSON.stringify(info);
       if (g.rsvpSync !== sig) jobs.push([g, info, sig]);
     }
