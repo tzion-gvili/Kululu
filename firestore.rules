@@ -13,6 +13,30 @@ service cloud.firestore {
         && request.resource.data.updatedAt is string
         && request.resource.data.updatedAt.size() < 40;
     }
+
+    // One small document per guest for the RSVP page. The id is a random token that only that guest's link carries.
+    function okStr(d, f, max) {
+      return !(f in d) || (d[f] is string && d[f].size() <= max);
+    }
+    function okInt(d, f) {
+      return !(f in d) || (d[f] is int && d[f] >= 0 && d[f] <= 30);
+    }
+    match /rsvps/{token} {
+      allow get: if token.matches('^[0-9a-f]{32}$');
+      allow list, delete: if false;
+      allow create, update: if token.matches('^[0-9a-f]{32}$')
+        && request.resource.data.keys().hasOnly(['g', 'c', 'd', 'v', 'n', 'a', 'k', 'm', 'at'])
+        && okStr(request.resource.data, 'g', 80)
+        && okStr(request.resource.data, 'c', 80)
+        && okStr(request.resource.data, 'd', 20)
+        && okStr(request.resource.data, 'v', 80)
+        && okInt(request.resource.data, 'n')
+        && okInt(request.resource.data, 'k')
+        && okStr(request.resource.data, 'm', 200)
+        && okStr(request.resource.data, 'at', 40)
+        && (!('a' in request.resource.data) || request.resource.data.a in ['yes', 'maybe', 'no']);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
