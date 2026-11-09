@@ -12,6 +12,11 @@ const U = {
     return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3)}` : String(p ?? '');
   },
   telHref: (p) => 'tel:' + String(p).replace(/[^\d+]/g, ''),
+  localPhone(p) {
+    const d = U.digits(p);
+    return d.startsWith('972') ? '0' + d.slice(3) : d;
+  },
+  canPickContacts: () => 'contacts' in navigator && 'select' in navigator.contacts,
   waHref(p, text) {
     let d = U.digits(p);
     if (d.startsWith('0')) d = '972' + d.slice(1);

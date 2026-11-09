@@ -472,8 +472,11 @@ const App = {
         <select id="fSide"><option value="all">כל הצדדים</option>${opts(OPT.side, f.side)}</select>
         <select id="fRsvp"><option value="all">כל התשובות</option>${opts(OPT.rsvp, f.rsvp)}</select>
         <button class="btn" id="addGuest">➕ מוזמן חדש</button>
+        ${U.canPickContacts() ? '<button class="btn secondary" id="fromContacts">📇 מאנשי הקשר</button>' : ''}
       </div>
       <div id="guestList"></div>`;
+    const fc = p.querySelector('#fromContacts');
+    if (fc) fc.onclick = () => this.importContacts();
     p.querySelector('#q').oninput = (e) => { f.q = e.target.value; Sound.tick(); this.guestList(); };
     p.querySelector('#fSide').onchange = (e) => { f.side = e.target.value; this.guestList(); };
     p.querySelector('#fRsvp').onchange = (e) => { f.rsvp = e.target.value; this.guestList(); };
@@ -551,6 +554,42 @@ const App = {
     }).join('');
   },
 
+  async importContacts() {
+    let picked = [];
+    try {
+      picked = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+    } catch (e) {
+      console.warn(e);
+      return;
+    }
+    const d = Store.data;
+    const have = new Set(d.guests.map((g) => U.localPhone(g.phone)).filter(Boolean));
+    let added = 0;
+    let dup = 0;
+    for (const c of picked || []) {
+      const name = ((c.name || []).find(Boolean) || '').trim().slice(0, 60);
+      const tel = U.localPhone((c.tel || []).find(Boolean) || '');
+      if (!name) continue;
+      if (tel && have.has(tel)) { dup++; continue; }
+      const g = blankGuest();
+      g.name = name;
+      g.phone = tel;
+      d.guests.push(g);
+      if (tel) have.add(tel);
+      added++;
+    }
+    if (!added) {
+      if (dup) FX.toast(`כל ${dup} אנשי הקשר כבר ברשימה 👍`, 'info');
+      return;
+    }
+    this.save();
+    Sound.correct();
+    FX.hearts();
+    FX.toast(`💖 נוספו ${added} מוזמנים!${dup ? ` (${dup} כבר היו)` : ''} עכשיו אפשר לערוך לכל אחד צד וקבוצה ✏️`, 'good');
+    this.pane();
+    this.syncCloud();
+  },
+
   guestForm(g) {
     const isNew = !g;
     const x = isNew ? blankGuest() : JSON.parse(JSON.stringify(g));
@@ -564,7 +603,7 @@ const App = {
       <h2>${isNew ? '➕ מוזמן חדש' : '✏️ ' + U.esc(x.name)}</h2>
       <form id="gForm" class="form grid2" autocomplete="off">
         <label class="full">שם מלא *<input name="name" required maxlength="60" value="${U.esc(x.name)}" placeholder="למשל: דוד ושרה כהן"></label>
-        <label>טלפון<input name="phone" type="tel" inputmode="tel" maxlength="20" value="${U.esc(x.phone)}" placeholder="050-0000000"></label>
+        <label>טלפון<div class="code-row"><input name="phone" type="tel" inputmode="tel" maxlength="20" value="${U.esc(x.phone)}" placeholder="050-0000000">${U.canPickContacts() ? '<button type="button" class="icon-btn" id="pickContact" title="מאנשי הקשר">📇</button>' : ''}</div></label>
         <label>מאיזה צד?<select name="side">${opts(sides, x.side)}</select></label>
         <label>קשר<select name="relation">${opts(OPT.relation, x.relation)}</select></label>
         <label>קבוצה (מי יושב יחד)<input name="group" list="groupList" maxlength="40" value="${U.esc(x.group)}" placeholder="למשל: חברים מהתיכון">
@@ -621,6 +660,22 @@ const App = {
     card.querySelector('#avoidAdd').onclick = addAvoid;
     card.querySelector('#avoidIn').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addAvoid(); } };
     card.querySelector('#cancel').onclick = () => this.closeModal();
+
+    const pc = card.querySelector('#pickContact');
+    if (pc) pc.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const [c] = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+        if (!c) return;
+        const tel = (c.tel || []).find(Boolean);
+        if (tel) card.querySelector('[name="phone"]').value = U.localPhone(tel);
+        const nm = card.querySelector('[name="name"]');
+        if (!nm.value.trim() && c.name && c.name[0]) nm.value = c.name[0];
+        Sound.pop();
+      } catch (err) {
+        console.warn(err);
+      }
+    };
 
     const del = card.querySelector('#delGuest');
     if (del) del.onclick = () => {
