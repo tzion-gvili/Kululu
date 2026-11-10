@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "wedding": { "groom": "איתי", "bride": "נועה", "date": "2027-03-18", "venue": "אולמי הגפן", "defaultSeats": 12 },
+  "wedding": { "groom": "איתי", "bride": "נועה", "date": "2027-03-18", "time": "19:30", "venue": "אולמי הגפן", "address": "רחוב הגפן 5, ראשון לציון", "defaultSeats": 12 },
   "tables": [
     { "id": "t1", "name": "שולחן 1 – משפחה", "seats": 12, "zone": "dance" },
     { "id": "t2", "name": "שולחן 2 – משפחה", "seats": 12, "zone": "dance" },

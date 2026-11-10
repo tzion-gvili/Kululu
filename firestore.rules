@@ -25,11 +25,13 @@ service cloud.firestore {
       allow get: if token.matches('^[0-9a-f]{32}$');
       allow list, delete: if false;
       allow create, update: if token.matches('^[0-9a-f]{32}$')
-        && request.resource.data.keys().hasOnly(['g', 'c', 'd', 'v', 'n', 'a', 'k', 'm', 'at'])
+        && request.resource.data.keys().hasOnly(['g', 'c', 'd', 't', 'v', 'h', 'n', 'a', 'k', 'm', 'at'])
         && okStr(request.resource.data, 'g', 80)
         && okStr(request.resource.data, 'c', 80)
         && okStr(request.resource.data, 'd', 20)
+        && okStr(request.resource.data, 't', 10)
         && okStr(request.resource.data, 'v', 80)
+        && okStr(request.resource.data, 'h', 120)
         && okInt(request.resource.data, 'n')
         && okInt(request.resource.data, 'k')
         && okStr(request.resource.data, 'm', 200)

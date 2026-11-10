@@ -103,7 +103,7 @@ function makeTables(n, seats, start = 1) {
 function blankWedding(groom, bride, date, type, hero) {
   return {
     version: 1,
-    wedding: { type: EVENTS[type] ? type : 'wedding', hero: hero || '', groom, bride, date: date || '', venue: '', defaultSeats: 12 },
+    wedding: { type: EVENTS[type] ? type : 'wedding', hero: hero || '', groom, bride, date: date || '', time: '', venue: '', address: '', defaultSeats: 12 },
     tables: makeTables(10, 12),
     guests: [],
     updatedAt: new Date().toISOString(),
@@ -375,6 +375,10 @@ const Store = {
     for (const g of this.data.guests) {
       if (!g.rt) { g.rt = Vault.hex(crypto.getRandomValues(new Uint8Array(16))); dirty = true; }
       const info = { g: g.name, c: Ev.rsvpTitle(w), d: w.date || '', v: w.venue || '', n: Seating.seatsOf(g) };
+      // Only send t/h once used, so weddings without them keep working on older firestore.rules.
+      const prev = g.rsvpSync || '';
+      if (w.time || prev.includes('"t":')) info.t = w.time || '';
+      if (w.address || prev.includes('"h":')) info.h = w.address || '';
       const sig = JSON.stringify(info);
       if (g.rsvpSync !== sig) jobs.push([g, info, sig]);
     }

@@ -120,11 +120,13 @@ const App = {
 
   inviteText(g) {
     const w = Store.data.wedding;
-    const when = [w.date ? 'ב' + U.fmtDate(w.date) : '', w.venue ? 'ב' + w.venue : ''].filter(Boolean).join(', ');
+    const when = [w.date ? 'ב' + U.fmtDate(w.date) : '', w.time ? 'בשעה ' + w.time : ''].filter(Boolean).join(' ');
+    const where = [w.venue, w.address].filter(Boolean).join(', ');
     const link = this.inviteLink(g);
     return [
       `שלום ${g.name}! ${Ev.of(w).icon}`,
       `${Ev.inviteLine(w)} בע"ה${when ? ' ' + when : ''}.`,
+      ...(where ? [`📍 ${where}`] : []),
       'נשמח מאוד לראות אותך! 🥰',
       '',
       link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשר/י הגעה בתשובה להודעה הזאת 🙏',
@@ -156,7 +158,8 @@ const App = {
           <p class="rsvp-hello">שלום <b>${U.esc(r.g)}</b>!</p>
           <div class="couple-names"><span>${U.esc(ev.title)}</span></div>
           <p class="rsvp-sub">${ev.wedding ? 'מתחתנים בע"ה ומזמינים אותך לשמוח איתם!' : 'בע"ה – ומזמינים אותך לשמוח איתנו!'} 💖</p>
-          <div class="couple-meta">${[U.fmtDate(r.d), U.esc(r.v)].filter(Boolean).join(' · ')}</div>
+          <div class="couple-meta">${[U.fmtDate(r.d), r.t ? '🕖 ' + U.esc(r.t) : ''].filter(Boolean).join(' · ')}</div>
+          ${r.v || r.h ? `<div class="couple-meta">📍 ${[U.esc(r.v), U.esc(r.h)].filter(Boolean).join(', ')}</div>` : ''}
           ${days > 0 ? `<div class="countdown">עוד <b>${days}</b> ימים ${ev.e.to} בע"ה 💫</div>` : ''}
           <div class="login-card rsvp-card">
             <h3>${r.a ? 'התשובה שלך – אפשר לשנות:' : 'תגיעו? 🥰'}</h3>
@@ -448,7 +451,8 @@ const App = {
         <section class="couple">
           ${Ev.isWedding(w) ? '' : `<div class="couple-meta">${ev.icon} ${ev.name}</div>`}
           <div class="couple-names">${names}</div>
-          <div class="couple-meta">${[U.fmtDate(w.date), U.esc(w.venue)].filter(Boolean).join(' · ')}</div>
+          <div class="couple-meta">${[U.fmtDate(w.date), w.time ? '🕖 ' + U.esc(w.time) : '', U.esc(w.venue)].filter(Boolean).join(' · ')}</div>
+          ${w.address ? `<div class="couple-meta">📍 ${U.esc(w.address)}</div>` : ''}
           <div class="countdown">${count}</div>
         </section>
         <div class="stats" id="stats">${this.statsHtml()}</div>
@@ -951,7 +955,7 @@ const App = {
     const who = (g) => `• ${g.name}${n(g) > 1 ? ` (${n(g)})` : ''}${g.rsvp !== 'yes' ? ' ❔' : ''}`;
     const sum = (gs) => gs.reduce((s, g) => s + n(g), 0);
     const coming = d.guests.filter(Seating.attending);
-    const head = [`${Ev.of(w).icon} *${Ev.isWedding(w) ? Ev.pair(w) : Ev.headline(w)}*`, [U.fmtDate(w.date), w.venue].filter(Boolean).join(' · ')].filter(Boolean);
+    const head = [`${Ev.of(w).icon} *${Ev.isWedding(w) ? Ev.pair(w) : Ev.headline(w)}*`, [U.fmtDate(w.date), w.time ? '🕖 ' + w.time : '', w.venue].filter(Boolean).join(' · '), w.address ? '📍 ' + w.address : ''].filter(Boolean);
     const out = [];
 
     if (this.report === 'tables') {
@@ -1132,7 +1136,9 @@ const App = {
           <form id="wForm" class="form grid2">
             ${this.eventFields(w)}
             <label>תאריך<input name="date" type="date" value="${U.esc(w.date)}"></label>
-            <label>מקום (אולם / גן)<input name="venue" maxlength="60" value="${U.esc(w.venue)}"></label>
+            <label>שעת האירוע<input name="time" type="time" value="${U.esc(w.time)}"></label>
+            <label>שם האולם (אולם / גן)<input name="venue" maxlength="60" value="${U.esc(w.venue)}"></label>
+            <label>כתובת האולם<input name="address" maxlength="100" placeholder="רחוב, מספר, עיר" value="${U.esc(w.address)}"></label>
             <label>מקומות בשולחן רגיל<input name="defaultSeats" type="number" min="1" max="60" value="${w.defaultSeats}"></label>
             <label>כמה שולחנות יש באולם?<input name="tables" type="number" min="0" max="200" value="${d.tables.length}"></label>
             <div class="full modal-actions"><button class="btn" type="submit">שמירה 💾</button></div>
@@ -1172,7 +1178,7 @@ const App = {
     p.querySelector('#wForm').onsubmit = (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
-      ['type', 'hero', 'groom', 'bride', 'date', 'venue'].forEach((k) => { w[k] = String(f.get(k) || '').trim(); });
+      ['type', 'hero', 'groom', 'bride', 'date', 'time', 'venue', 'address'].forEach((k) => { w[k] = String(f.get(k) || '').trim(); });
       if (!EVENTS[w.type]) w.type = 'wedding';
       if (!EVENTS[w.type].hero) w.hero = '';
       w.defaultSeats = U.clamp(+f.get('defaultSeats') || 12, 1, 60);
