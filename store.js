@@ -26,8 +26,16 @@ const EVENTS = {
   henna: { name: 'חינה', the: 'החינה', to: 'לחינה', icon: '🪬', a: 'החתן', b: 'הכלה', hero: '' },
   barmitzvah: { name: 'בר מצווה', the: 'בר המצווה', to: 'לבר המצווה', icon: '📜', a: 'אבא', b: 'אמא', hero: 'חתן בר המצווה' },
   batmitzvah: { name: 'בת מצווה', the: 'בת המצווה', to: 'לבת המצווה', icon: '👑', a: 'אבא', b: 'אמא', hero: 'בת המצווה' },
-  brit: { name: 'ברית', the: 'הברית', to: 'לברית', icon: '👶', a: 'אבא', b: 'אמא', hero: 'התינוק (אם כבר יודעים)' },
+  brit: { name: 'ברית', the: 'הברית', to: 'לברית', icon: '👶', a: 'אבא', b: 'אמא', hero: 'התינוק (אם כבר יודעים)', noHero: 'ברית לבן' },
+  zeved: { name: 'זבד הבת', the: 'זבד הבת', to: 'לזבד הבת', icon: '🎀', a: 'אבא', b: 'אמא', hero: 'התינוקת (אם כבר יודעים)', noHero: 'זבד הבת לבת' },
 };
+/* ---------- Invitation picture for one event, matched by its file key (never the ID itself – this file is public) ---------- */
+const PHOTOS = {
+  '3e7f205167e0524d7f9adadd5e7f5988': 'IMG-20261109-WA0001.jpg', // Tahel & Yair
+};
+const PHOTO_OK = /^[\w.-]+\.(jpe?g|png|webp)$/i;
+const photoUrl = (file) => location.origin + location.pathname.replace(/[^/]*$/, '') + encodeURIComponent(file);
+
 const Ev = {
   of: (w) => EVENTS[w && w.type] || EVENTS.wedding,
   isWedding: (w) => Ev.of(w) === EVENTS.wedding,
@@ -36,14 +44,14 @@ const Ev = {
   headline(w) {
     const e = Ev.of(w);
     if (e === EVENTS.wedding) return `${Ev.pair(w)} מתחתנים`;
-    if (e === EVENTS.brit && !w.hero) return `ברית לבן של ${Ev.pair(w)}`;
+    if (e.noHero && !w.hero) return `${e.noHero} של ${Ev.pair(w)}`;
     return `${e.the} של ${w.hero || Ev.pair(w)}`;
   },
   // "איתי ונועה מתחתנים" · "מזמינים אותך לבר המצווה של יוסי"
   inviteLine(w) {
     const e = Ev.of(w);
     if (e === EVENTS.wedding) return Ev.headline(w);
-    if (e === EVENTS.brit && !w.hero) return `מזמינים אותך לברית לבן של ${Ev.pair(w)}`;
+    if (e.noHero && !w.hero) return `מזמינים אותך ל${e.noHero} של ${Ev.pair(w)}`;
     return `מזמינים אותך ${e.to} של ${w.hero || Ev.pair(w)}`;
   },
   sides(w) {
@@ -223,6 +231,7 @@ const Store = {
   },
   lsKey() { return 'kululu_w_' + this.key; },
   fileName() { return `w-${this.key}.json`; },
+  photo() { return PHOTOS[this.key] || ''; },
 
   pendKey() { return 'kululu_pending_' + this.key; },
   setStatus(s) {
@@ -379,6 +388,7 @@ const Store = {
       const prev = g.rsvpSync || '';
       if (w.time || prev.includes('"t":')) info.t = w.time || '';
       if (w.address || prev.includes('"h":')) info.h = w.address || '';
+      if (this.photo() || prev.includes('"p":')) info.p = this.photo();
       const sig = JSON.stringify(info);
       if (g.rsvpSync !== sig) jobs.push([g, info, sig]);
     }

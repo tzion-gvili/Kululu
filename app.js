@@ -123,12 +123,15 @@ const App = {
     const when = [w.date ? 'ב' + U.fmtDate(w.date) : '', w.time ? 'בשעה ' + w.time : ''].filter(Boolean).join(' ');
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     const link = this.inviteLink(g);
+    const photo = Store.photo();
     return [
       `שלום ${g.name}! ${Ev.of(w).icon}`,
       `${Ev.inviteLine(w)} בע"ה${when ? ' ' + when : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
       'נשמח מאוד לראות אותך! 🥰',
       '',
+      // WhatsApp shows a preview only for the first link, so the picture goes before the RSVP link.
+      ...(photo ? [`💌 ההזמנה שלנו:\n${photoUrl(photo)}`, ''] : []),
       link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשר/י הגעה בתשובה להודעה הזאת 🙏',
     ].join('\n');
   },
@@ -160,6 +163,7 @@ const App = {
           <p class="rsvp-sub">${ev.wedding ? 'מתחתנים בע"ה ומזמינים אותך לשמוח איתם!' : 'בע"ה – ומזמינים אותך לשמוח איתנו!'} 💖</p>
           <div class="couple-meta">${[U.fmtDate(r.d), r.t ? '🕖 ' + U.esc(r.t) : ''].filter(Boolean).join(' · ')}</div>
           ${r.v || r.h ? `<div class="couple-meta">📍 ${[U.esc(r.v), U.esc(r.h)].filter(Boolean).join(', ')}</div>` : ''}
+          ${PHOTO_OK.test(r.p || '') ? `<a class="rsvp-photo" href="${photoUrl(r.p)}" target="_blank" rel="noopener"><img src="${photoUrl(r.p)}" alt="ההזמנה"></a>` : ''}
           ${days > 0 ? `<div class="countdown">עוד <b>${days}</b> ימים ${ev.e.to} בע"ה 💫</div>` : ''}
           <div class="login-card rsvp-card">
             <h3>${r.a ? 'התשובה שלך – אפשר לשנות:' : 'תגיעו? 🥰'}</h3>
@@ -247,7 +251,7 @@ const App = {
       <div class="login fade-in">
         <div class="rings">💍</div>
         <h1><span class="hl">קולולו</span></h1>
-        <p class="tagline">רשימת המוזמנים וההושבה של האירוע שלכם – חתונה, חינה, בר/בת מצווה או ברית. במקום אחד, בכל טלפון.</p>
+        <p class="tagline">רשימת המוזמנים וההושבה של האירוע שלכם – חתונה, חינה, בר/בת מצווה, ברית או זבד הבת. במקום אחד, בכל טלפון.</p>
         <form class="login-card" id="loginForm" autocomplete="off">
           <label for="code">הכניסו תעודת זהות (או קוד אישי)</label>
           <div class="code-row">
@@ -321,7 +325,7 @@ const App = {
     card.querySelector('input[type=file]').onchange = (e) => this.importFrom(e.target.files[0], true);
   },
 
-  // Event type + the two sides' names (+ the child's name for bar/bat mitzvah and brit).
+  // Event type + the two sides' names (+ the child's name for bar/bat mitzvah, brit and zeved).
   eventFields(w) {
     const e = Ev.of(w);
     const types = Object.fromEntries(Object.entries(EVENTS).map(([k, v]) => [k, `${v.icon} ${v.name}`]));

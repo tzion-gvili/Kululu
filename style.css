@@ -289,6 +289,8 @@ input[type=date] { color-scheme: dark; }
 .rsvp-hello { font-size: 24px; margin: 6px 0; }
 .rsvp-sub { font-size: 19px; color: #ffe5f1; margin: 6px 0; }
 .rsvp-card { margin-top: 18px; }
+.rsvp-photo { display: block; max-width: 420px; margin: 16px auto 0; }
+.rsvp-photo img { width: 100%; border-radius: 18px; border: 2px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
 .rsvp-card h3 { margin: 0; font-size: 22px; }
 .rsvp-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .choice {
