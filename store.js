@@ -381,23 +381,35 @@ const Store = {
     const w = this.data.wedding;
     let dirty = false;
     const jobs = [];
+    // Time / address / picture are newer fields that older firestore.rules reject.
+    const lean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !['t', 'h', 'p'].includes(k)));
     for (const g of this.data.guests) {
       if (!g.rt) { g.rt = Vault.hex(crypto.getRandomValues(new Uint8Array(16))); dirty = true; }
-      const info = { g: g.name, c: Ev.rsvpTitle(w), d: w.date || '', v: w.venue || '', n: Seating.seatsOf(g) };
-      // Only send t/h once used, so weddings without them keep working on older firestore.rules.
+      let info = { g: g.name, c: Ev.rsvpTitle(w), d: w.date || '', v: w.venue || '', n: Seating.seatsOf(g) };
+      // Only send t/h/p once used, so weddings without them keep working on older firestore.rules.
       const prev = g.rsvpSync || '';
       if (w.time || prev.includes('"t":')) info.t = w.time || '';
       if (w.address || prev.includes('"h":')) info.h = w.address || '';
       if (this.photo() || prev.includes('"p":')) info.p = this.photo();
-      const sig = JSON.stringify(info);
-      if (g.rsvpSync !== sig) jobs.push([g, info, sig]);
+      if (Cloud.oldRules) info = lean(info);
+      if (g.rsvpSync !== JSON.stringify(info)) jobs.push([g, info]);
     }
     if (dirty) this.save();
     let done = 0;
-    for (const [g, info, sig] of jobs) {
+    for (const [g, info] of jobs) {
+      let send = Cloud.oldRules ? lean(info) : info;
       try {
-        await Cloud.rsvpPut(g.rt, info);
-        g.rsvpSync = sig;
+        try {
+          await Cloud.rsvpPut(g.rt, send);
+        } catch (e) {
+          if (Object.keys(lean(send)).length === Object.keys(send).length) throw e;
+          // Rules not published yet: keep the guest's link working without the new fields.
+          console.warn(e.message, '→ saving without time/address/picture (publish the new firestore.rules)');
+          Cloud.oldRules = true;
+          send = lean(send);
+          await Cloud.rsvpPut(g.rt, send);
+        }
+        g.rsvpSync = JSON.stringify(send);
         done++;
       } catch (e) {
         console.warn(e.message);
