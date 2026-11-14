@@ -128,7 +128,7 @@ const App = {
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     return [
       `שלום ${g.name}! ${e.icon}`,
-      `רק מזכירים: ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
+      `רק מזכירים: בע"ה: ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
       ...(w.address ? [`🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(w.address)}&navigate=yes`] : []),
       '',
