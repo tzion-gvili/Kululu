@@ -110,12 +110,61 @@ const App = {
     this.syncCloud();
   },
 
-  markSent(id) {
+  markSent(id, key = 'sentAt') {
     const g = Store.guest(id);
     if (!g) return;
-    g.sentAt = new Date().toISOString();
+    g[key] = new Date().toISOString();
     g.invited = true;
     this.save();
+  },
+
+  remindText(g) {
+    const w = Store.data.wedding;
+    const e = Ev.of(w);
+    const what = Ev.isWedding(w) ? `${e.the} של ${Ev.pair(w)}` : Ev.headline(w);
+    const days = U.daysUntil(w.date);
+    const soon = days == null || days < 0 ? '' : days === 0 ? 'היום' : days === 1 ? 'מחר' : days === 2 ? 'בעוד יומיים' : `בעוד ${days} ימים`;
+    const when = [w.date ? U.fmtDate(w.date) : '', w.time ? 'בשעה ' + w.time : ''].filter(Boolean).join(' ');
+    const where = [w.venue, w.address].filter(Boolean).join(', ');
+    return [
+      `שלום ${g.name}! ${e.icon}`,
+      `רק מזכירים: ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
+      ...(where ? [`📍 ${where}`] : []),
+      ...(w.address ? [`🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(w.address)}&navigate=yes`] : []),
+      '',
+      'נשמח מאוד לראותכם! 🥰',
+    ].join('\n');
+  },
+
+  exportCsv() {
+    const d = Store.data;
+    if (!d.guests.length) { Sound.wrong(); FX.toast('🙈 עוד אין מוזמנים ברשימה', 'bad'); return; }
+    // Quote every cell; a leading = + - @ would make Excel run it as a formula.
+    const cell = (v) => {
+      const s = String(v ?? '');
+      return `"${(/^[=+\-@]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
+    };
+    const order = { groom: 0, bride: 1, both: 2 };
+    const rows = [...d.guests]
+      .sort((a, b) => (order[a.side] - order[b.side]) || a.name.localeCompare(b.name, 'he'))
+      .map((g) => {
+        const t = g.table && Store.table(g.table);
+        return [g.name, U.fmtPhone(g.phone), this.sideName(g.side), OPT.relation[g.relation], g.group,
+          g.count, g.kids, OPT.rsvp[g.rsvp], t ? t.name : '', g.notes];
+      });
+    const head = ['שם', 'טלפון', 'צד', 'קשר', 'קבוצה', 'מקומות', 'ילדים', 'אישור הגעה', 'שולחן', 'הערות'];
+    // The BOM makes Excel read the Hebrew correctly.
+    const csv = '\ufeff' + [head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+    const w = d.wedding;
+    const title = (Ev.isWedding(w) ? Ev.pair(w) : Ev.headline(w)).replace(/[\\/:*?"<>|]/g, '').trim();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `מוזמנים${title ? ' - ' + title : ''}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    Sound.correct();
+    FX.toast(`📊 הרשימה ירדה (${d.guests.length} מוזמנים). אפשר לפתוח באקסל`, 'good');
   },
 
   inviteText(g) {
@@ -513,8 +562,10 @@ const App = {
         <select id="fRsvp"><option value="all">כל התשובות</option>${opts(OPT.rsvp, f.rsvp)}</select>
         <button class="btn" id="addGuest">➕ מוזמן חדש</button>
         ${U.canPickContacts() ? '<button class="btn secondary" id="fromContacts">📇 מאנשי הקשר</button>' : ''}
+        <button class="btn secondary" id="exportCsv">📊 ייצוא לאקסל</button>
       </div>
       <div id="guestList"></div>`;
+    p.querySelector('#exportCsv').onclick = () => this.exportCsv();
     const fc = p.querySelector('#fromContacts');
     if (fc) fc.onclick = () => this.importContacts();
     p.querySelector('#q').oninput = (e) => { f.q = e.target.value; Sound.tick(); this.guestList(); };
@@ -1022,10 +1073,7 @@ const App = {
     const sent = withPhone.filter((g) => g.sentAt);
     const next = withPhone.find((g) => !g.sentAt && !this.skipped.has(g.id));
     const pct = withPhone.length ? Math.round((100 * sent.length) / withPhone.length) : 0;
-    const ago = (iso) => {
-      const m = Math.round((Date.now() - new Date(iso)) / 60000);
-      return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק'` : m < 1440 ? `לפני ${Math.round(m / 60)} שע'` : `לפני ${Math.round(m / 1440)} ימים`;
-    };
+    const ago = (iso) => this.ago(iso);
 
     p.innerHTML += `
       <div class="panel invite-panel">
@@ -1083,13 +1131,90 @@ const App = {
     };
   },
 
+  remindWho: 'yes',
+  remindSkipped: new Set(),
+
+  reminders(p) {
+    const d = Store.data;
+    const days = U.daysUntil(d.wedding.date);
+    const want = (g) => (this.remindWho === 'all' ? g.rsvp !== 'no' : g.rsvp === 'yes');
+    const withPhone = d.guests.filter(want).filter((g) => U.digits(g.phone).length >= 9);
+    const noPhone = d.guests.filter(want).length - withPhone.length;
+    const sent = withPhone.filter((g) => g.remindAt);
+    const next = withPhone.find((g) => !g.remindAt && !this.remindSkipped.has(g.id));
+    const pct = withPhone.length ? Math.round((100 * sent.length) / withPhone.length) : 0;
+    const sample = next || withPhone[0];
+
+    p.innerHTML += `
+      <div class="panel invite-panel">
+        <p>שולחים לאורחים <b>תזכורת</b> בוואטסאפ: איזה אירוע, בעוד כמה ימים, ואיפה. ⏰</p>
+        ${days == null ? '<p class="muted small">💡 עוד אין תאריך לאירוע. הוסיפו אותו בהגדרות ⚙️ – ואז התזכורת תגיד "בעוד כמה ימים".</p>'
+          : days < 0 ? '<p class="muted small">האירוע כבר עבר. מזל טוב! 💖</p>' : ''}
+        <div class="toolbar seg">
+          <button class="btn ${this.remindWho === 'yes' ? '' : 'secondary'}" data-rwho="yes">✅ מי שאישר הגעה (${d.guests.filter((g) => g.rsvp === 'yes').length})</button>
+          <button class="btn ${this.remindWho === 'all' ? '' : 'secondary'}" data-rwho="all">👥 כל מי שלא אמר "לא" (${d.guests.filter((g) => g.rsvp !== 'no').length})</button>
+        </div>
+        <div class="send-progress"><div class="bar"><i style="width:${pct}%"></i></div><span>נשלחו ${sent.length} מתוך ${withPhone.length}</span></div>
+        ${sample ? `<pre class="report">${U.esc(this.remindText(sample))}</pre>` : ''}
+        ${next ? `
+          <div class="next-send">
+            <a class="btn big wa-btn" href="${U.waHref(next.phone, this.remindText(next))}" target="_blank" rel="noopener" data-remind="${next.id}">⏰ תזכורת ל${U.esc(next.name)}</a>
+            <button class="btn secondary" data-rskip="${next.id}">דלג ⏭️</button>
+          </div>
+          <p class="muted small">לוחצים → וואטסאפ נפתח עם התזכורת מוכנה → לוחצים "שלח" → חוזרים לכאן לבא בתור.</p>`
+        : withPhone.length ? `
+          <div class="all-sent">🎉 כולם קיבלו תזכורת!</div>
+          <button class="btn secondary" id="remAgain">🔄 סבב תזכורות חדש</button>`
+        : '<p class="muted">אין כאן אורחים עם טלפון.</p>'}
+        ${noPhone ? `<p class="muted small">📵 ל-${noPhone} אורחים אין טלפון ברשימה.</p>` : ''}
+        <div class="send-list">
+          ${withPhone.map((g) => `
+            <div class="send-row ${g.remindAt ? 'done' : ''}">
+              <span class="s-ic">${RSVP_ICON[g.rsvp]}</span>
+              <span class="s-name">${U.esc(g.name)}</span>
+              <span class="muted small">${g.remindAt ? '⏰ ' + this.ago(g.remindAt) : ''}</span>
+              <a class="icon-btn small wa" href="${U.waHref(g.phone, this.remindText(g))}" target="_blank" rel="noopener" data-remind="${g.id}" title="שליחת תזכורת">💬</a>
+            </div>`).join('')}
+        </div>
+      </div>`;
+
+    p.onclick = (e) => {
+      const r = e.target.closest('[data-rep]');
+      if (r) { this.report = r.dataset.rep; this.pane(); return; }
+      const who = e.target.closest('[data-rwho]');
+      if (who) { this.remindWho = who.dataset.rwho; this.remindSkipped.clear(); this.pane(); return; }
+      const s = e.target.closest('[data-remind]');
+      if (s) {
+        this.markSent(s.dataset.remind, 'remindAt');
+        Sound.seat();
+        setTimeout(() => { if (this.tab === 'share') this.pane(); }, 400);
+        return;
+      }
+      const sk = e.target.closest('[data-rskip]');
+      if (sk) { this.remindSkipped.add(sk.dataset.rskip); Sound.pop(); this.pane(); return; }
+      if (e.target.closest('#remAgain')) {
+        d.guests.forEach((g) => { g.remindAt = ''; });
+        this.remindSkipped.clear();
+        this.save();
+        Sound.pop();
+        this.pane();
+      }
+    };
+  },
+
+  ago(iso) {
+    const m = Math.round((Date.now() - new Date(iso)) / 60000);
+    return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק'` : m < 1440 ? `לפני ${Math.round(m / 60)} שע'` : `לפני ${Math.round(m / 1440)} ימים`;
+  },
+
   share(p) {
-    const kinds = { invite: '💌 אישורי הגעה', tables: '🪑 לפי שולחנות', guests: '👥 כל המוזמנים', hall: '🍽️ לאולם (מנות)' };
+    const kinds = { invite: '💌 אישורי הגעה', remind: '⏰ תזכורת', tables: '🪑 לפי שולחנות', guests: '👥 כל המוזמנים', hall: '🍽️ לאולם (מנות)' };
     const seg = `
       <div class="toolbar seg">
         ${Object.entries(kinds).map(([k, v]) => `<button class="btn ${this.report === k ? '' : 'secondary'}" data-rep="${k}">${v}</button>`).join('')}
       </div>`;
     if (this.report === 'invite') { p.innerHTML = seg; this.invites(p); return; }
+    if (this.report === 'remind') { p.innerHTML = seg; this.reminders(p); return; }
     p.innerHTML = `
       ${seg}
       ${this.report === 'guests' ? `<label class="check share-opt"><input type="checkbox" id="withPhones" ${this.withPhones ? 'checked' : ''}> 📞 להוסיף טלפונים</label>` : ''}
@@ -1099,7 +1224,10 @@ const App = {
         ${navigator.share ? '<button class="btn secondary" id="toShare">📤 שיתוף…</button>' : ''}
         <button class="btn secondary" id="toCopy">📋 העתקה</button>
         <button class="btn secondary" id="toPrint">🖨️ הדפסה</button>
+        ${this.report === 'guests' ? '<button class="btn secondary" id="toCsv">📊 הורדה לאקסל</button>' : ''}
       </div>`;
+    const csv = p.querySelector('#toCsv');
+    if (csv) csv.onclick = () => this.exportCsv();
     p.onclick = (e) => {
       const r = e.target.closest('[data-rep]');
       if (r) { this.report = r.dataset.rep; this.pane(); }

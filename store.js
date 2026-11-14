@@ -96,6 +96,7 @@ function blankGuest() {
     rsvpAt: '',
     rsvpNote: '',
     sentAt: '',
+    remindAt: '',
   };
 }
 
