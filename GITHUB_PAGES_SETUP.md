@@ -35,4 +35,4 @@ https://tzion-gvili.github.io/Kululu/
 
 ## הוספת פרסומת
 
-עורכים את `adv.json`. לכל פרסומת: `icon` (אימוג'י), `caption` (כותרת), `catchPhrase` (משפט), `phone`.
+עורכים את `adv.json`. לכל פרסומת: `icon` (אימוג'י), `caption` (כותרת), `catchPhrase` (משפט), `phone`, ו-`link` (לא חובה: כתובת אתר או אימייל, למשל `https://...` או `name@mail.com`).

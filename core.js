@@ -317,6 +317,28 @@ const Ads = {
     this.show(0);
   },
 
+  // "link" in adv.json: a web address (https://..., www....) or an e-mail. Anything else is ignored.
+  linkHtml(link) {
+    const s = String(link ?? '').trim();
+    if (!s) return '';
+    let href = '';
+    let label = s;
+    if (/^mailto:/i.test(s)) { href = s; label = s.slice(7); }
+    else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) href = 'mailto:' + s;
+    else {
+      try {
+        const u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s);
+        if (!/^https?:$/.test(u.protocol) || !u.hostname.includes('.')) return '';
+        href = u.href;
+        label = (u.hostname + u.pathname).replace(/^www\./, '').replace(/\/$/, '');
+      } catch (e) {
+        return '';
+      }
+    }
+    const mail = href.startsWith('mailto:');
+    return `<a class="ad-phone ad-link" href="${U.esc(href)}" ${mail ? '' : 'target="_blank" rel="noopener"'}>${mail ? '✉️' : '🔗'} <span class="ltr">${U.esc(label)}</span></a>`;
+  },
+
   show(k) {
     this.i = (k + this.list.length) % this.list.length;
     const a = this.list[this.i];
@@ -327,7 +349,8 @@ const Ads = {
       ${a.icon ? `<div class="ad-icon">${U.esc(a.icon)}</div>` : ''}
       <div class="ad-caption">${U.esc(a.caption)}</div>
       <div class="ad-phrase">${U.esc(a.catchPhrase)}</div>
-      ${a.phone ? `<a class="ad-phone" href="${U.telHref(a.phone)}">📞 <span class="ltr">${U.esc(U.fmtPhone(a.phone))}</span></a>` : ''}`;
+      ${a.phone ? `<a class="ad-phone" href="${U.telHref(a.phone)}">📞 <span class="ltr">${U.esc(U.fmtPhone(a.phone))}</span></a>` : ''}
+      ${this.linkHtml(a.link)}`;
     card.classList.add('in');
     document.querySelectorAll('.dot').forEach((d, n) => d.classList.toggle('on', n === this.i));
 

@@ -32,14 +32,16 @@
 {
     "icon": "💐",
     "caption": "לימוד חוויתי דרך אפליקציה",
-    "catchPhrase": "https://tzion-gvili.github.io/Tsgreen3",
-    "phone": "0525914007"
+    "catchPhrase": "לומדים בכיף, צעד אחרי צעד",
+    "phone": "0525914007",
+    "link": "https://tzion-gvili.github.io/Tsgreen3"
   },
 {
     "icon": "🚗",
     "caption": "לימוד תיאוריה חוויתי",
-    "catchPhrase": "https://tzion-gvili.github.io/Bipbip3",
-    "phone": "0525914007"
+    "catchPhrase": "עוברים את התיאוריה בקלות ובכיף",
+    "phone": "0525914007",
+    "link": "https://tzion-gvili.github.io/Bipbip3"
   }
 
 

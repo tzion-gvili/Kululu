@@ -110,6 +110,12 @@ const App = {
     this.syncCloud();
   },
 
+  // Two days after the event, invitations and reminders can no longer be sent.
+  sendingClosed() {
+    const days = U.daysUntil(Store.data.wedding.date);
+    return days != null && days <= -2;
+  },
+
   markSent(id, key = 'sentAt') {
     const g = Store.guest(id);
     if (!g) return;
@@ -123,12 +129,13 @@ const App = {
     const e = Ev.of(w);
     const what = Ev.isWedding(w) ? `${e.the} של ${Ev.pair(w)}` : Ev.headline(w);
     const days = U.daysUntil(w.date);
-    const soon = days == null || days < 0 ? '' : days === 0 ? 'היום' : days === 1 ? 'מחר' : days === 2 ? 'בעוד יומיים' : `בעוד ${days} ימים`;
+    const lead = days === 0 ? 'היום' : days === 1 ? 'מחר' : '';
+    const soon = days == null || days < 2 ? '' : days === 2 ? 'בעוד יומיים' : `בעוד ${days} ימים`;
     const when = [w.date ? U.fmtDate(w.date) : '', w.time ? 'בשעה ' + w.time : ''].filter(Boolean).join(' ');
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     return [
       `שלום ${g.name}! ${e.icon}`,
-      `רק מזכירים: בע"ה: ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
+      `רק מזכירים: ${lead ? `*${lead}* ` : ''}בע"ה ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
       ...(w.address ? [`🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(w.address)}&navigate=yes`] : []),
       '',
@@ -634,8 +641,8 @@ const App = {
                   </div>
                 </div>
                 <div class="g-actions">
-                  ${g.phone ? `<a class="icon-btn" href="${U.telHref(g.phone)}" title="התקשרו">📞</a>
-                  <a class="icon-btn wa" href="${U.waHref(g.phone, this.inviteText(g))}" target="_blank" rel="noopener" data-sent="${g.id}" title="הזמנה בוואטסאפ">💬</a>` : ''}
+                  ${g.phone ? `<a class="icon-btn" href="${U.telHref(g.phone)}" title="התקשרו">📞</a>` : ''}
+                  ${g.phone && !this.sendingClosed() ? `<a class="icon-btn wa" href="${U.waHref(g.phone, this.inviteText(g))}" target="_blank" rel="noopener" data-sent="${g.id}" title="הזמנה בוואטסאפ">💬</a>` : ''}
                   <button class="icon-btn" data-act="edit" title="עריכה">✏️</button>
                 </div>
               </div>`;
@@ -1213,6 +1220,18 @@ const App = {
       <div class="toolbar seg">
         ${Object.entries(kinds).map(([k, v]) => `<button class="btn ${this.report === k ? '' : 'secondary'}" data-rep="${k}">${v}</button>`).join('')}
       </div>`;
+    if ((this.report === 'invite' || this.report === 'remind') && this.sendingClosed()) {
+      p.innerHTML = `${seg}
+        <div class="panel invite-panel">
+          <div class="all-sent">💖 האירוע כבר עבר. מזל טוב!</div>
+          <p class="muted">אחרי יומיים מהאירוע כבר אי אפשר לשלוח הזמנות ותזכורות.</p>
+        </div>`;
+      p.onclick = (e) => {
+        const r = e.target.closest('[data-rep]');
+        if (r) { this.report = r.dataset.rep; this.pane(); }
+      };
+      return;
+    }
     if (this.report === 'invite') { p.innerHTML = seg; this.invites(p); return; }
     if (this.report === 'remind') { p.innerHTML = seg; this.reminders(p); return; }
     p.innerHTML = `
