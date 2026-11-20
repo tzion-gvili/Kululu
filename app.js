@@ -124,7 +124,7 @@ const App = {
     this.save();
   },
 
-  remindText(g) {
+    remindText(g) {
     const w = Store.data.wedding;
     const e = Ev.of(w);
     const what = Ev.isWedding(w) ? `${e.the} של ${Ev.pair(w)}` : Ev.headline(w);
@@ -135,13 +135,15 @@ const App = {
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     return [
       `שלום ${g.name}! ${e.icon}`,
-      `רק מזכירים: ${lead ? `*${lead}* ` : ''}בע"ה ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
+      'בשבח והודיה לה\' יתברך,',
+      `שמחים להזכיר כי ${lead ? `*${lead}* ` : ''}בע"ה תתקיים ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
-      ...(w.address ? [`🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(w.address)}&navigate=yes`] : []),
+      ...(w.address ? [`🚗 ניווט: https://waze.com{encodeURIComponent(w.address)}&navigate=yes`] : []),
       '',
       'נשמח מאוד לראותכם! 🥰',
     ].join('\n');
   },
+
 
   exportCsv() {
     const d = Store.data;
@@ -174,21 +176,23 @@ const App = {
     FX.toast(`📊 הרשימה ירדה (${d.guests.length} מוזמנים). אפשר לפתוח באקסל`, 'good');
   },
 
-  inviteText(g) {
+    inviteText(g) {
     const w = Store.data.wedding;
     const when = [w.date ? 'ב' + U.fmtDate(w.date) : '', w.time ? 'בשעה ' + w.time : ''].filter(Boolean).join(' ');
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     const link = this.inviteLink(g);
     const photo = Store.photo();
+    const intro = Ev.isWedding(w) ? `${Ev.pair(w)} מתחתנים` : Ev.headline(w);
     return [
       `שלום ${g.name}! ${Ev.of(w).icon}`,
-      `${Ev.inviteLine(w)} בע"ה${when ? ' ' + when : ''}.`,
+      'בשבח והודיה לה\' יתברך,',
+      `שמחים להודיעכם כי ${intro} בע"ה${when ? ' ' + when : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
-      'נשמח מאוד לראות אותך! 🥰',
+      'נשמח מאוד לראותכם! 🥰',
       '',
       // WhatsApp shows a preview only for the first link, so the picture goes before the RSVP link.
       ...(photo ? [`💌 ההזמנה שלנו:\n${photoUrl(photo)}`, ''] : []),
-      link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשר/י הגעה בתשובה להודעה הזאת 🙏',
+      link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשרו הגעה בתשובה להודעה הזאת 🙏',
     ].join('\n');
   },
 
