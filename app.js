@@ -135,12 +135,11 @@ const App = {
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     return [
       `שלום ${g.name}! ${e.icon}`,
-      'בשבח והודיה לה\' יתברך,',
-      `שמחים להזכיר כי ${lead ? `*${lead}* ` : ''}בע"ה תתקיים ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
+      `בשבח והודיה לה' יתברך אנחנו שמחים להזכיר כי ${lead ? `*${lead}* ` : ''}בע"ה תתקיים ${what}${soon ? ' ' + soon : ''}${when ? ` (${when})` : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
-      ...(w.address ? [`🚗 ניווט: https://waze.com{encodeURIComponent(w.address)}&navigate=yes`] : []),
+      ...(w.address ? [`🚗 ניווט: https://waze.com/ul?q=${encodeURIComponent(w.address)}&navigate=yes`] : []),
       '',
-      'נשמח מאוד לראותכם! 🥰',
+      'נשמח לראותכם 🥰',
     ].join('\n');
   },
 
@@ -185,10 +184,9 @@ const App = {
     const intro = Ev.isWedding(w) ? `${Ev.pair(w)} מתחתנים` : Ev.headline(w);
     return [
       `שלום ${g.name}! ${Ev.of(w).icon}`,
-      'בשבח והודיה לה\' יתברך,',
-      `שמחים להודיעכם כי ${intro} בע"ה${when ? ' ' + when : ''}.`,
+      `בשבח והודיה לה' יתברך אנחנו שמחים להודיעכם כי ${intro} בע"ה${when ? ' ' + when : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
-      'נשמח מאוד לראותכם! 🥰',
+      'נשמח לראותכם 🥰',
       '',
       // WhatsApp shows a preview only for the first link, so the picture goes before the RSVP link.
       ...(photo ? [`💌 ההזמנה שלנו:\n${photoUrl(photo)}`, ''] : []),
