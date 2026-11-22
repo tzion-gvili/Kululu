@@ -52,9 +52,9 @@ const App = {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) Store.refresh().then(() => this.syncCloud());
     });
-    setInterval(() => {
-      if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) this.syncCloud();
-    }, 300000);
+    //setInterval(() => {
+    //  if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) this.syncCloud();
+    //}, 300000);
     addEventListener('online', () => {
       if (Store.data && localStorage.getItem(Store.pendKey())) Store.push();
     });

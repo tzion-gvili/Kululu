@@ -424,7 +424,8 @@ const Store = {
   async syncRsvps() {
     if (!Cloud.on() || !this.data) return [];
    
-    const gs = this.data.guests.filter((g) => g.rt && g.sentAt);
+     const gs = this.data.guests.filter((g) => g.rt && g.sentAt && (g.rsvp === 'pending' || g.rsvp === 'maybe'));
+
 
     if (!gs.length) return [];
     const docs = await Cloud.rsvpBatch(gs.map((g) => g.rt));
