@@ -46,7 +46,7 @@ const App = {
     Store.onStatus = (s) => this.paintCloud(s);
     Store.onExternal = () => {
       FX.toast('🔄 הרשימה עודכנה מטלפון אחר', 'info');
-      if (modalOpen()) this.chrome(); else this.dash();
+      this.dash();
     };
     const modalOpen = () => !document.getElementById('modal').classList.contains('hidden');
     document.addEventListener('visibilitychange', () => {
@@ -54,7 +54,7 @@ const App = {
     });
     setInterval(() => {
       if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) this.syncCloud();
-    }, 300000);
+    }, 60000);
     addEventListener('online', () => {
       if (Store.data && localStorage.getItem(Store.pendKey())) Store.push();
     });
@@ -114,18 +114,6 @@ const App = {
   sendingClosed() {
     const days = U.daysUntil(Store.data.wedding.date);
     return days != null && days <= -2;
-  },
-
-  // A new guest's page reaches the cloud a moment after he is added. Until then his link would find nothing.
-  linkReady(e, g) {
-    if (!Cloud.on() || !g || g.rsvpSync) return true;
-    e.preventDefault();
-    FX.toast('⏳ רגע, מכינים את הקישור האישי...', 'info');
-    Store.ensureInvites().catch(() => {}).then(() => {
-      if (g.rsvpSync) { Sound.correct(); FX.toast(`✅ הקישור של ${U.esc(g.name)} מוכן! לחצו שוב על 💬`, 'good'); }
-      else { Sound.wrong(); FX.toast('📴 אין חיבור כרגע. נסו שוב בעוד רגע', 'bad'); }
-    });
-    return false;
   },
 
   markSent(id, key = 'sentAt') {
@@ -213,16 +201,10 @@ const App = {
     document.getElementById('homeBtn').onclick = null;
     this.root.innerHTML = '<div class="login fade-in"><div class="rings spin">💌</div><p class="tagline">פותחים את ההזמנה...</p></div>';
     let r = null;
-    let failed = false;
-    for (let i = 0; i < 3 && !(r && r.g); i++) {
-      if (i) await new Promise((ok) => setTimeout(ok, 2000 * i));
-      try { r = Cloud.on() ? await Cloud.rsvpGet(token) : null; failed = false; } catch (e) { failed = true; console.warn(e.message); }
-    }
+    try { r = Cloud.on() ? await Cloud.rsvpGet(token) : null; } catch (e) { console.warn(e.message); }
     if (!r || !r.g) {
-      this.root.innerHTML = `<div class="login fade-in"><div class="rings">${failed ? '📶' : '🙈'}</div>
-        <p class="tagline">${failed ? 'יש תקלה רגעית בחיבור.<br>נסו שוב בעוד רגע 🙏' : 'לא מצאנו את ההזמנה הזאת.<br>נסו שוב בעוד דקה, או בקשו ממי ששלח לשלוח את הקישור שוב.'}</p>
-        <button class="btn big" id="retry">🔄 לנסות שוב</button></div>`;
-      this.root.querySelector('#retry').onclick = () => this.rsvpPage(token);
+      this.root.innerHTML = `<div class="login fade-in"><div class="rings">🙈</div>
+        <p class="tagline">לא מצאנו את ההזמנה הזאת.<br>אפשר לבקש ממי ששלח לשלוח את הקישור שוב.</p></div>`;
       return;
     }
     const ev = Ev.fromRsvp(r.c);
@@ -253,10 +235,6 @@ const App = {
               <div class="stepper">
                 <button type="button" data-step="-1">−</button><b id="cnt">${pick.k}</b><button type="button" data-step="1">+</button>
               </div>
-            </div>
-            <div class="send-reminder" role="note">
-              <span class="send-reminder-icon">👇</span>
-              <span><b>חשוב!</b> אחרי שבחרתם – <b>חייבים ללחוץ על הכפתור "שליחה"</b> בסוף, אחרת התשובה לא תגיע אלינו.</span>
             </div>
             <label class="note-row">רוצים לכתוב משהו ${ev.wedding ? 'לזוג' : 'למשפחה'}? (לא חובה)
               <textarea id="note" rows="2" maxlength="200" placeholder="מזל טוב! ...">${U.esc(pick.m)}</textarea></label>
@@ -607,7 +585,7 @@ const App = {
       const card = e.target.closest('[data-id]');
       if (!card) return;
       const g = Store.guest(card.dataset.id);
-      if (e.target.closest('[data-sent]')) { if (this.linkReady(e, g)) this.markSent(g.id); }
+      if (e.target.closest('[data-sent]')) this.markSent(g.id);
       else if (e.target.closest('[data-act="edit"]')) this.guestForm(g);
       else if (e.target.closest('[data-act="rsvp"]')) {
         g.rsvp = RSVP_NEXT[g.rsvp];
@@ -804,7 +782,6 @@ const App = {
     if (del) del.onclick = () => {
       if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = 'בטוח? לחצו שוב'; Sound.wrong(); return; }
       d.guests = d.guests.filter((o) => o.id !== x.id);
-      d.gone.push(x.id);
       d.guests.forEach((o) => { o.avoid = o.avoid.filter((id) => id !== x.id); });
       this.save();
       this.closeModal();
@@ -1146,7 +1123,6 @@ const App = {
       if (who) { this.inviteWho = who.dataset.who; this.skipped.clear(); this.pane(); return; }
       const s = e.target.closest('[data-send]');
       if (s) {
-        if (!this.linkReady(e, Store.guest(s.dataset.send))) return;
         this.markSent(s.dataset.send);
         Sound.seat();
         setTimeout(() => { if (this.tab === 'share') this.pane(); }, 400);
