@@ -115,6 +115,7 @@ function blankWedding(groom, bride, date, type, hero) {
     wedding: { type: EVENTS[type] ? type : 'wedding', hero: hero || '', groom, bride, date: date || '', time: '', venue: '', address: '', defaultSeats: 12 },
     tables: makeTables(10, 12),
     guests: [],
+    gone: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -137,6 +138,7 @@ function normalize(d) {
     if (!tids.has(x.table)) x.table = null;
     return x;
   });
+  out.gone = Array.isArray(d.gone) ? d.gone.slice(-3000) : [];
   out.updatedAt = d.updatedAt || out.updatedAt;
   return out;
 }
@@ -278,7 +280,7 @@ const Store = {
     const remote = await this.fetchRemote();
     this.hasRemote = !!remote;
     const pick = local && remote
-      ? (String(local.updatedAt) >= String(remote.updatedAt) ? local : remote)
+      ? (localStorage.getItem(this.pendKey()) || String(local.updatedAt) >= String(remote.updatedAt) ? local : remote)
       : local || remote;
     if (!pick) return false;
     this.data = normalize(pick);
@@ -310,9 +312,10 @@ const Store = {
     if (this._busy) { clearTimeout(this._timer); this._timer = setTimeout(() => this.push(), 400); return; }
     this._busy = true;
     const key = this.key;
-    const snap = this.data.updatedAt;
+    let snap = this.data.updatedAt;
     this.setStatus('saving');
     try {
+      if (await this.keepOthers(key)) snap = this.data.updatedAt;
       if (!this.salt) this.salt = Vault.newSalt();
       const box = await Vault.lock(this.data, this.code, this.salt);
       await Cloud.put(key, box, snap);
@@ -329,6 +332,26 @@ const Store = {
     } finally {
       this._busy = false;
     }
+  },
+
+  // Two phones on one list: before saving, keep guests the other phone added and drop the ones it deleted.
+  async keepOthers(key) {
+    let remote = null;
+    try { remote = await this.unbox(await Cloud.get(key)); } catch (e) { return false; }
+    if (!remote || key !== this.key || !Array.isArray(remote.guests)) return false;
+    const d = this.data;
+    const gone = new Set([...d.gone, ...(Array.isArray(remote.gone) ? remote.gone : [])]);
+    const have = new Set(d.guests.map((g) => g.id));
+    const add = remote.guests.filter((g) => !have.has(g.id) && !gone.has(g.id));
+    const before = d.guests.length;
+    d.guests = d.guests.filter((g) => !gone.has(g.id));
+    if (add.length) d.guests.push(...normalize({ guests: add, tables: d.tables }).guests);
+    d.gone = [...gone].slice(-3000);
+    if (!add.length && d.guests.length === before) return false;
+    d.updatedAt = new Date().toISOString();
+    localStorage.setItem(this.lsKey(), JSON.stringify(d));
+    if (this.onExternal) this.onExternal();
+    return true;
   },
 
   // When the app comes back to the screen, take a newer version saved from another phone.
