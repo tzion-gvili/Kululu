@@ -423,7 +423,9 @@ const Store = {
   // Pulls guests' answers from their RSVP pages into the list. Returns the guests that answered since last time.
   async syncRsvps() {
     if (!Cloud.on() || !this.data) return [];
-    const gs = this.data.guests.filter((g) => g.rt);
+   
+    const gs = this.data.guests.filter((g) => g.rt && g.sentAt);
+
     if (!gs.length) return [];
     const docs = await Cloud.rsvpBatch(gs.map((g) => g.rt));
     const fresh = [];

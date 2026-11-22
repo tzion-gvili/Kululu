@@ -54,7 +54,7 @@ const App = {
     });
     setInterval(() => {
       if (document.visibilityState === 'visible' && !modalOpen() && !this.guestMode) this.syncCloud();
-    }, 60000);
+    }, 300000);
     addEventListener('online', () => {
       if (Store.data && localStorage.getItem(Store.pendKey())) Store.push();
     });
@@ -73,28 +73,33 @@ const App = {
   },
 
   /* ---------- Cloud sync: personal links out, guests' answers in ---------- */
-  async syncCloud() {
-    if (!Cloud.on() || !Store.data || this._syncing) return;
+    async syncCloud() {
+    if (!Cloud.on() || !Store.data) return;
+    if (this._syncing) { this._syncAgain = true; return; }
     this._syncing = true;
     try {
-      await Store.ensureInvites();
-      const fresh = await Store.syncRsvps();
-      if (fresh.length) {
-        const yes = fresh.filter((g) => g.rsvp === 'yes').length;
-        Sound.bells();
-        if (yes) FX.hearts();
-        FX.toast(fresh.length === 1
-          ? `💌 ${U.esc(fresh[0].name)} ענה/תה: ${OPT.rsvp[fresh[0].rsvp]} ${RSVP_ICON[fresh[0].rsvp]}`
-          : `💌 ${fresh.length} תשובות חדשות! (${yes} מגיעים)`, 'good');
-        if (document.getElementById('modal').classList.contains('hidden')) this.dash();
-        else this.chrome();
-      }
+      do {
+        this._syncAgain = false;
+        await Store.ensureInvites();
+        const fresh = await Store.syncRsvps();
+        if (fresh.length) {
+          const yes = fresh.filter((g) => g.rsvp === 'yes').length;
+          Sound.bells();
+          if (yes) FX.hearts();
+          FX.toast(fresh.length === 1
+            ? `💌 ${U.esc(fresh[0].name)} ענה/תה: ${OPT.rsvp[fresh[0].rsvp]} ${RSVP_ICON[fresh[0].rsvp]}`
+            : `💌 ${fresh.length} תשובות חדשות! (${yes} מגיעים)`, 'good');
+          if (document.getElementById('modal').classList.contains('hidden')) this.dash();
+          else this.chrome();
+        }
+      } while (this._syncAgain);
     } catch (e) {
       console.warn(e.message);
     } finally {
       this._syncing = false;
     }
   },
+
 
   inviteLink(g) {
     if (!Cloud.on()) return '';
