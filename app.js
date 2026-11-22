@@ -194,9 +194,12 @@ const App = {
       '',
       // WhatsApp shows a preview only for the first link, so the picture goes before the RSVP link.
       ...(photo ? [`💌 ההזמנה שלנו:\n${photoUrl(photo)}`, ''] : []),
-      link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשרו הגעה בתשובה להודעה הזאת 🙏',
+      link 
+        ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}\n\nאם הלינק לא נפתח, פשוט שלחו בתשובה: מגיעים וכמה`
+        : 'אם אתם מתכננים להגיע, פשוט שלחו בתשובה: מגיעים וכמה 🙏',
     ].join('\n');
   },
+
 
   /* ---------- Guest RSVP page (opened from the personal link) ---------- */
   async rsvpPage(token) {
