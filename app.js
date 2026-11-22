@@ -185,15 +185,16 @@ const App = {
     const where = [w.venue, w.address].filter(Boolean).join(', ');
     const link = this.inviteLink(g);
     const photo = Store.photo();
+    const intro = Ev.isWedding(w) ? `${Ev.pair(w)} מתחתנים` : Ev.headline(w);
     return [
       `שלום ${g.name}! ${Ev.of(w).icon}`,
-      `${Ev.inviteLine(w)} בע"ה${when ? ' ' + when : ''}.`,
+      `בשבח והודיה לה' יתברך אנחנו שמחים להודיעכם כי ${intro} בע"ה${when ? ' ' + when : ''}.`,
       ...(where ? [`📍 ${where}`] : []),
-      'נשמח מאוד לראות אותך! 🥰',
+      'נשמח לראותכם 🥰',
       '',
       // WhatsApp shows a preview only for the first link, so the picture goes before the RSVP link.
       ...(photo ? [`💌 ההזמנה שלנו:\n${photoUrl(photo)}`, ''] : []),
-      link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשר/י הגעה בתשובה להודעה הזאת 🙏',
+      link ? `לאישור הגעה (לוחצים – לוקח 5 שניות):\n${link}` : 'נשמח אם תאשרו הגעה בתשובה להודעה הזאת 🙏',
     ].join('\n');
   },
 
