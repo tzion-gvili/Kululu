@@ -236,6 +236,10 @@ const App = {
                 <button type="button" data-step="-1">−</button><b id="cnt">${pick.k}</b><button type="button" data-step="1">+</button>
               </div>
             </div>
+            <div class="send-reminder" role="note">
+              <span class="send-reminder-icon">👇</span>
+              <span><b>חשוב!</b> אחרי שבחרתם – <b>חייבים ללחוץ על הכפתור "שליחה"</b> בסוף, אחרת התשובה לא תגיע אלינו.</span>
+            </div>
             <label class="note-row">רוצים לכתוב משהו ${ev.wedding ? 'לזוג' : 'למשפחה'}? (לא חובה)
               <textarea id="note" rows="2" maxlength="200" placeholder="מזל טוב! ...">${U.esc(pick.m)}</textarea></label>
             <button class="btn big" id="send" ${pick.a ? '' : 'disabled'}>שליחה 💖</button>
