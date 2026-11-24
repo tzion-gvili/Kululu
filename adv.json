@@ -11,18 +11,6 @@
     "catchPhrase": "צלמים, די ג'יי, אולמות, שמלות – זוגות מתכננים כאן את החתונה 🎉",
     "phone": "0525914007"
   },
-  {
-    "icon": "🎶",
-    "caption": "די ג'יי לחתונות",
-    "catchPhrase": "רחבה מלאה מהשיר הראשון ועד האחרון",
-    "phone": "0500000000"
-  },
-  {
-    "icon": "💐",
-    "caption": "עיצוב פרחים לחופה",
-    "catchPhrase": "חופה שכולם יצלמו – בהתאמה אישית",
-    "phone": "0500000000"
-  },
 {
     "icon": "💐",
     "caption": "עיצוב חינות",
@@ -30,19 +18,43 @@
     "phone": "0523449516"
   },
 {
-    "icon": "💐",
-    "caption": "לימוד חוויתי דרך אפליקציה",
-    "catchPhrase": "לומדים בכיף, צעד אחרי צעד",
-    "phone": "0525914007",
-    "link": "https://tzion-gvili.github.io/Tsgreen3"
-  },
-{
     "icon": "🚗",
     "caption": "לימוד תיאוריה חוויתי",
     "catchPhrase": "עוברים את התיאוריה בקלות ובכיף",
     "phone": "0525914007",
     "link": "https://tzion-gvili.github.io/Bipbip3"
+},
+  {
+    "icon": "💐",
+    "caption": "לימוד חוויתי דרך אפליקציה",
+    "catchPhrase": "לומדים בכיף, צעד אחרי צעד",
+    "phone": "0525914007",
+    "link": "https://tgsofts.github.io"
+  },
+{
+    "icon": "💐",
+    "caption": "מנקה מסמכים",
+    "catchPhrase": "מנקה טקטסט מסימנים מיותרים",
+    "phone": "0525914007",
+    "link": "https://tgsofts.github.io/ai-text-cleaner"
   }
+,
+{
+    "icon": "💐",
+    "caption": "ממציא הסיסמאות",
+    "catchPhrase": "בדיוק כמו שזה נשמע",
+    "phone": "0525914007",
+    "link": "https://tgsofts.github.io/password-generator"
+  }
+,
+{
+    "icon": "💐",
+    "caption": "מנקה התמונות",
+    "catchPhrase": "בדיוק כמו שזה נשמע",
+    "phone": "0525914007",
+    "link": "https://tgsofts.github.io/screenshot-blur"
+  }
+
 
 
 ]
