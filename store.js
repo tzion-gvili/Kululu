@@ -24,6 +24,10 @@ const OPT = {
 const EVENTS = {
   wedding: { name: 'חתונה', the: 'החתונה', to: 'לחופה', icon: '💍', a: 'החתן', b: 'הכלה', hero: '' },
   henna: { name: 'חינה', the: 'החינה', to: 'לחינה', icon: '🪬', a: 'החתן', b: 'הכלה', hero: '' },
+  shabbatgroom: { name: 'שבת חתן', the: 'שבת החתן', to: 'לשבת החתן', icon: '🕯️', a: 'החתן', b: 'הכלה', hero: 'החתן' },
+  shabbatbride: { name: 'שבת כלה', the: 'שבת הכלה', to: 'לשבת הכלה', icon: '✨', a: 'הכלה', b: 'החתן', hero: 'הכלה' },
+  shabbataliyah: { name: 'שבת עלייה לתורה', the: 'שבת העלייה לתורה', to: 'לשבת העלייה לתורה', icon: '🕎', a: 'אבא', b: 'אמא', hero: 'חתן בר המצווה' },
+  shabbatbatmitzvah: { name: 'שבת בת מצווה', the: 'שבת בת המצווה', to: 'לשבת בת המצווה', icon: '🌸', a: 'אבא', b: 'אמא', hero: 'כלת בת המצווה' },
   barmitzvah: { name: 'בר מצווה', the: 'בר המצווה', to: 'לבר המצווה', icon: '📜', a: 'אבא', b: 'אמא', hero: 'חתן בר המצווה' },
   batmitzvah: { name: 'בת מצווה', the: 'בת המצווה', to: 'לבת המצווה', icon: '👑', a: 'אבא', b: 'אמא', hero: 'בת המצווה' },
   brit: { name: 'ברית', the: 'הברית', to: 'לברית', icon: '👶', a: 'אבא', b: 'אמא', hero: 'התינוק (אם כבר יודעים)', noHero: 'ברית לבן' },
