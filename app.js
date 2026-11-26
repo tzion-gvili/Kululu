@@ -374,9 +374,9 @@ const App = {
     }
   },
 
-  askApproval(code, key) {
+    askApproval(code, key) {
     const msg = `היי! אשמח לפתוח אירוע חדש בקולולו 💍\nקוד אישור: ${key}`;
-    const mail = `mailto:YOUR_EMAIL@://gmail.com{encodeURIComponent('אישור פתיחת אירוע בקולולו')}&body=${encodeURIComponent(msg)}`;
+    const mail = `mailto:tziongvili@://gmail.com{encodeURIComponent('אישור פתיחת אירוע בקולולו')}&body=${encodeURIComponent(msg)}`;
     this.openModal(`
       <div class="result-emoji">🔐</div>
       <h2>פתיחת אירוע חדש</h2>
@@ -390,6 +390,7 @@ const App = {
       </div>`);
     document.getElementById('modalCard').querySelector('[data-m="close"]').onclick = () => this.closeModal();
   },
+
 
 
   askCreate() {
