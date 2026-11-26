@@ -308,6 +308,7 @@ const App = {
   },
 
   /* ---------- Login ---------- */
+    /* ---------- Login ---------- */
   login() {
     this.closeModal();
     Store.data = null;
@@ -318,13 +319,13 @@ const App = {
         <h1><span class="hl">קולולו</span></h1>
         <p class="tagline">רשימת המוזמנים וההושבה של האירוע שלכם – חתונה, חינה, בר/בת מצווה, ברית או זבד הבת. במקום אחד, בכל טלפון.</p>
         <form class="login-card" id="loginForm" autocomplete="off">
-          <label for="code">הכניסו תעודת זהות (או קוד אישי)</label>
+          <label for="code">הכניסו מספר טלפון (או קוד אישי לאירוע)</label>
           <div class="code-row">
-            <input id="code" type="password" inputmode="numeric" placeholder="•••••••••" autofocus>
+            <input id="code" type="password" inputmode="text" placeholder="למשל: 0501234567" autofocus>
             <button type="button" class="icon-btn" id="peek" title="הצג">👁️</button>
           </div>
           <button class="btn big" type="submit">כניסה 💖</button>
-          <p class="muted small">כל משפחה רואה רק את האירוע שלה. הקובץ נעול עם הקוד שלכם.</p>
+          <p class="muted small">🔒 לא שולחים פרסומות. שני בני הזוג נכנסים עם אותו קוד בדיוק מכל טלפון.</p>
         </form>
       </div>`;
     const input = this.root.querySelector('#code');
@@ -334,9 +335,11 @@ const App = {
       e.preventDefault();
       const code = Store.cleanCode(input.value);
       const card = this.root.querySelector('.login-card');
-      if (code.length < 4) { Sound.wrong(); FX.shake(card); FX.toast('🙈 הקוד קצר מדי (לפחות 4 תווים)', 'bad'); return; }
-      if (/^\d{9}$/.test(code) && !U.isIsraeliId(code)) {
-        Sound.wrong(); FX.shake(card); FX.toast('🙈 נראה שיש טעות בתעודת הזהות', 'bad'); return;
+      if (code.length < 4) {
+        Sound.wrong();
+        FX.shake(card);
+        FX.toast('🙈 הקוד קצר מדי (לפחות 4 תווים, מומלץ מספר טלפון)', 'bad');
+        return;
       }
       this.enter(code, false);
     };
@@ -349,7 +352,8 @@ const App = {
     if (!ok) {
       if (silent) { sessionStorage.removeItem('kululu_code'); this.login(); return; }
       this.login();
-      this.askCreate();
+      if (await this.isAllowed(Store.key)) this.askCreate();
+      else this.askApproval(code, Store.key);
       return;
     }
     sessionStorage.setItem('kululu_code', code);
@@ -358,6 +362,35 @@ const App = {
     this.dash();
     this.syncCloud();
   },
+
+  async isAllowed(key) {
+    try {
+      const r = await fetch('allowed.json', { cache: 'no-store' });
+      if (!r.ok) return false;
+      const list = await r.json();
+      return Array.isArray(list) && list.includes(key);
+    } catch (e) {
+      return false;
+    }
+  },
+
+  askApproval(code, key) {
+    const msg = `היי! אשמח לפתוח אירוע חדש בקולולו 💍\nקוד אישור: ${key}`;
+    const mail = `mailto:YOUR_EMAIL@://gmail.com{encodeURIComponent('אישור פתיחת אירוע בקולולו')}&body=${encodeURIComponent(msg)}`;
+    this.openModal(`
+      <div class="result-emoji">🔐</div>
+      <h2>פתיחת אירוע חדש</h2>
+      <p>כדי לפתוח אירוע חדש באפליקציה, שלחו לי הודעה קצרה ואאשר לכם את הקוד תוך רגע!</p>
+      <p class="muted small">הקוד שבחרתם: <b class="ltr">${U.esc(code)}</b></p>
+      <div class="modal-actions">
+        <a class="btn wa-btn" href="${U.waHref('0525914007', msg)}" target="_blank" rel="noopener">💬 שליחה בוואטסאפ</a>
+        <a class="btn secondary" href="tel:0525914007">📞 חיוג</a>
+        <a class="btn secondary" href="${mail}">✉️ מייל</a>
+        <button class="btn secondary" type="button" data-m="close">סגירה</button>
+      </div>`);
+    document.getElementById('modalCard').querySelector('[data-m="close"]').onclick = () => this.closeModal();
+  },
+
 
   askCreate() {
     this.openModal(`
